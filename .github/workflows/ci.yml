@@ -1,3 +1,9 @@
+name: CI and Mirror
+
+on:
+  push:
+    branches: [ main, master ]
+
 jobs:
   direct-mirror:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -26,7 +32,7 @@ jobs:
           
           # Mirroring
           echo "📡 Démarrage du mirror..."
-          git remote add mirror "${{ env.MIRROR_REPO_URL }}"
+          git remote add mirror "${{ secrets.MIRROR_REPO_URL }}"
           git fetch --all --tags
           
           echo "🚀 Push vers le mirror..."
