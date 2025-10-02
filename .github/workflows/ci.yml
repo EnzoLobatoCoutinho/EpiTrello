@@ -1,42 +1,25 @@
-name: CI and Mirror
+name: autosender
 
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+    MIRROR_URL: ${{ secrets.MIRROR_URL }}
 
 jobs:
-  direct-mirror:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-      
-      - name: Setup SSH and Mirror repository
-        id: mirror
-        run: |
-          set -e
-          
-          # Configuration SSH
-          mkdir -p ~/.ssh
-          echo "${{ secrets.MIRROR_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-          
-          # Configuration Git
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git config --global url."git@github.com:".insteadOf "https://github.com/"
-          
-          # Mirroring
-          echo "📡 Démarrage du mirror..."
-          git remote add mirror "${{ secrets.MIRROR_REPO_URL }}"
-          git fetch --all --tags
-          
-          echo "🚀 Push vers le mirror..."
-          git push mirror --all --force
-          git push mirror --tags --force
-          
-          echo "✅ Mirror terminé avec succès"
+    sender:
+        timeout-minutes: 5
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+            - uses: pixta-dev/repository-mirroring-action@v1
+              with:
+                target_repo_url: ${{ env.MIRROR_URL }}
+                ssh_private_key: ${{ secrets.MIRROR_SSH_KEY }}
