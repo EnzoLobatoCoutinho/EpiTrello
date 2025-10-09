@@ -16,7 +16,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
     environment:
+      NODE_ENV: development
       DATABASE_URL: postgres://postgres:postgres@db:5432/epitrello
     ports:
       - "3000:3000"
