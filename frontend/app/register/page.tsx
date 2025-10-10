@@ -1,9 +1,42 @@
+"use client"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
 export default function RegisterPage() {
+  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [result, setResult] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setResult(null)
+
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        setResult(`${data.error || "Erreur inconnue"}`)
+      } else {
+        setResult(`Utilisateur créé avec succès : ${JSON.stringify(data.user, null, 2)}`)
+      }
+    } catch (err) {
+      setResult("Erreur de requête (API inaccessible)")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4 py-12">
       <div className="w-full max-w-md">
@@ -22,40 +55,71 @@ export default function RegisterPage() {
         </div>
 
         <div className="rounded-lg border bg-white p-8 shadow-sm">
-          <h1 className="mb-6 text-center text-2xl font-semibold text-foreground">Sign up for your account</h1>
+          <h1 className="mb-6 text-center text-2xl font-semibold text-foreground">
+            Sign up for your account
+          </h1>
 
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="name">Full name</Label>
-              <Input id="name" type="text" placeholder="Enter your full name" required />
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Enter your username"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="Enter your email" required />
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="Create a password" required />
+              <Input
+                id="password"
+                type="password"
+                placeholder="Create a password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
 
-            <div className="text-xs text-muted-foreground">
-              By signing up, you agree to the{" "}
-              <a href="#" className="text-primary hover:underline">
-                Terms of Service
-              </a>{" "}
-              and{" "}
-              <a href="#" className="text-primary hover:underline">
-                Privacy Policy
-              </a>
-              .
-            </div>
-
-            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-              Sign up
+            <Button
+              type="submit"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={loading}
+            >
+              {loading ? "Creating..." : "Sign up"}
             </Button>
           </form>
+
+          {result && (
+            <>
+              <Separator className="my-4" />
+              <pre className="rounded bg-slate-100 p-3 text-xs overflow-auto text-slate-700">
+                {result}
+              </pre>
+            </>
+          )}
+        </div>
+
+        <div className="mt-6 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <a href="/login" className="text-primary hover:underline">
+            Log in
+          </a>
         </div>
       </div>
     </div>
