@@ -22,13 +22,14 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        setResult(data?.error || "Erreur inconnue")
-      } else {
-        setResult(`Connecté : ${JSON.stringify(data.user, null, 2)}`)
+      setResult(JSON.stringify(data, null, 2))
+
+      if (res.ok && data.token) {
+        localStorage.setItem("token", data.token)
+        window.location.href = "/dashboard"
       }
-    } catch (err) {
-      setResult("Erreur de requête (API inaccessible)")
+    } catch {
+      setResult("Erreur lors de la requête")
     } finally {
       setLoading(false)
     }
