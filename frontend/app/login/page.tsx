@@ -84,10 +84,6 @@ export default function LoginPage() {
               {loading ? "Connexion..." : "Log in"}
             </Button>
           </form>
-
-          {result && (
-            <pre className="mt-4 rounded bg-muted p-3 text-sm whitespace-pre-wrap">{result}</pre>
-          )}
         </div>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">

@@ -28,7 +28,8 @@ export default function RegisterPage() {
       if (!res.ok) {
         setResult(`${data.error || "Erreur inconnue"}`)
       } else {
-        setResult(`Utilisateur créé avec succès : ${JSON.stringify(data.user, null, 2)}`)
+        setResult(`Utilisateur créé avec succès`)
+        window.location.href = "/login"
       }
     } catch (err) {
       setResult("Erreur de requête (API inaccessible)")
@@ -56,16 +57,16 @@ export default function RegisterPage() {
 
         <div className="rounded-lg border bg-white p-8 shadow-sm">
           <h1 className="mb-6 text-center text-2xl font-semibold text-foreground">
-            Sign up for your account
+            S'inscrire
           </h1>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Nom d'utilisateur</Label>
               <Input
                 id="username"
                 type="text"
-                placeholder="Enter your username"
+                placeholder="Entrez votre nom d'utilisateur"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -77,7 +78,7 @@ export default function RegisterPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder="Entrez votre email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -85,11 +86,11 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mot de passe</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Create a password"
+                placeholder="Créer un mot de passe"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -101,7 +102,7 @@ export default function RegisterPage() {
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={loading}
             >
-              {loading ? "Creating..." : "Sign up"}
+              {loading ? "Création..." : "S'inscrire"}
             </Button>
           </form>
 
@@ -116,9 +117,9 @@ export default function RegisterPage() {
         </div>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
+          Vous avez déjà un compte ?{" "}
           <a href="/login" className="text-primary hover:underline">
-            Log in
+            Se connecter
           </a>
         </div>
       </div>

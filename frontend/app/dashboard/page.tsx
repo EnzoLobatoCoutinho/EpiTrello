@@ -1,4 +1,40 @@
+"use client"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+
 export default function DashboardPage() {
+  const router = useRouter()
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    async function verify() {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        router.replace("/")
+        return
+      }
+
+      try {
+        const res = await fetch("/api/user", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) {
+          router.replace("/")
+          return
+        }
+        // optionally read user: const data = await res.json()
+      } catch (err) {
+        router.replace("/")
+        return
+      } finally {
+        setChecking(false)
+      }
+    }
+    verify()
+  }, [router])
+
+  if (checking) return null
+
   return (
     <div className="p-8">
       <div className="mb-8">

@@ -11,8 +11,8 @@ import { useRouter } from "next/navigation"
 export default function SettingsPage() {
   const [isEditingName, setIsEditingName] = useState(false)
   const [isEditingPassword, setIsEditingPassword] = useState(false)
-  const [name, setName] = useState("John Doe")
-  const [email, setEmail] = useState("john.doe@example.com")
+  const [name, setName] = useState("Chargement...")
+  const [email, setEmail] = useState("Chargement...")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
