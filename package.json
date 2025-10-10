@@ -25,6 +25,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@prisma/extension-accelerate": "^2.0.2"
+    "@prisma/extension-accelerate": "^2.0.2",
+    "next-auth": "^4.24.11"
   }
 }
