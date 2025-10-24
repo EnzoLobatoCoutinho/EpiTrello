@@ -21,7 +21,26 @@ export async function POST(req: Request) {
       select: { id: true, email: true, username: true },
     })
 
-    return NextResponse.json({ message: `Bienvenue ${user.username}!`, user }, { status: 201 })
+    let workspace
+    try {
+      workspace = await prisma.workspace.create({
+        data: {
+          owner_id: user.id,
+          description: `${user.username ?? user.email}'s workspace`,
+          status: "active",
+        },
+        select: { id: true, owner_id: true, description: true, status: true },
+      })
+    } catch (e) {
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => {})
+      console.error("Failed to create workspace for new user, rolled back user creation", e)
+      return NextResponse.json({ error: "Erreur lors de la création du workspace" }, { status: 500 })
+    }
+
+    return NextResponse.json(
+      { message: `Bienvenue ${user.username}!`, user, workspace },
+      { status: 201 }
+    )
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })

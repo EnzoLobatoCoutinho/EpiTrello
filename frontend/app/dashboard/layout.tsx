@@ -9,7 +9,6 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <aside className="w-64 border-r bg-card flex flex-col">
         <div className="flex h-16 items-center gap-2 border-b px-6">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-primary">
@@ -50,8 +49,6 @@ export default function DashboardLayout({
           </Button>
         </div>
       </aside>
-
-      {/* Main content */}
       <main className="flex-1 bg-background">{children}</main>
     </div>
   )
