@@ -148,30 +148,12 @@ function SortableCard({ card, onClick }: { card: CardType; onClick: () => void }
   )
 }
 
-function SortableList({ list, onCardClick }: { list: ListType; onCardClick: (card: CardType) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: list.id,
-    data: { type: "list" },
-  })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} className="w-72 flex-shrink-0">
-      <DroppableList list={list} dragHandleProps={{ ...attributes, ...listeners }} onCardClick={onCardClick} />
-    </div>
-  )
-}
-
 function DroppableList({
   list,
   dragHandleProps,
   onCardClick,
-}: { list: ListType; dragHandleProps?: any; onCardClick: (card: CardType) => void }) {
+  onAddCard,
+}: { list: ListType; dragHandleProps?: any; onCardClick: (card: CardType) => void; onAddCard: () => void }) {
   const { setNodeRef } = useDroppable({
     id: list.id,
     data: { type: "list" },
@@ -202,12 +184,44 @@ function DroppableList({
           </SortableContext>
         </div>
 
-        <Button variant="ghost" className="mt-2 w-full justify-start gap-2 text-muted-foreground hover:bg-accent">
+        <Button
+          variant="ghost"
+          className="mt-2 w-full justify-start gap-2 text-muted-foreground hover:bg-accent"
+          onClick={onAddCard}
+        >
           <Plus className="h-4 w-4" />
           Ajouter une carte
         </Button>
       </div>
     </Card>
+  )
+}
+
+function SortableList({
+  list,
+  onCardClick,
+  onAddCard,
+}: { list: ListType; onCardClick: (card: CardType) => void; onAddCard: (listId: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: list.id,
+    data: { type: "list" },
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="w-72 flex-shrink-0">
+      <DroppableList
+        list={list}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        onCardClick={onCardClick}
+        onAddCard={() => onAddCard(list.id)}
+      />
+    </div>
   )
 }
 
@@ -223,6 +237,8 @@ export default function BoardPage({ params }: { params: { id: string } }) {
   const [editedCard, setEditedCard] = useState<CardType | null>(null)
   const [isAddingList, setIsAddingList] = useState(false)
   const [newListTitle, setNewListTitle] = useState("")
+  const [addingCardListId, setAddingCardListId] = useState<string | null>(null)
+  const [newCardTitle, setNewCardTitle] = useState("")
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -346,6 +362,32 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     setIsAddingList(false)
   }
 
+  function handleAddCard(listId: string) {
+    setAddingCardListId(listId)
+  }
+
+  function handleSaveNewCard() {
+    if (!newCardTitle.trim() || !addingCardListId) return
+
+    const newCard: CardType = {
+      id: `card-${Date.now()}`,
+      title: newCardTitle,
+      description: "",
+    }
+
+    setLists(
+      lists.map((list) => {
+        if (list.id === addingCardListId) {
+          return { ...list, cards: [...list.cards, newCard] }
+        }
+        return list
+      }),
+    )
+
+    setNewCardTitle("")
+    setAddingCardListId(null)
+  }
+
   if (!board) {
     return <div>Board not found</div>
   }
@@ -372,7 +414,65 @@ export default function BoardPage({ params }: { params: { id: string } }) {
           <SortableContext items={lists.map((list) => list.id)} strategy={horizontalListSortingStrategy}>
             <div className="flex gap-4">
               {lists.map((list) => (
-                <SortableList key={list.id} list={list} onCardClick={handleCardClick} />
+                <div key={list.id} className="w-72 flex-shrink-0">
+                  {addingCardListId === list.id ? (
+                    <Card className="bg-background">
+                      <div className="p-3">
+                        <div className="mb-3 flex items-center gap-2">
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                          <h2 className="font-semibold text-foreground">{list.title}</h2>
+                        </div>
+
+                        <div className="min-h-[100px]">
+                          <SortableContext items={list.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                            <div className="space-y-2">
+                              {list.cards.map((card) => (
+                                <SortableCard key={card.id} card={card} onClick={() => handleCardClick(card)} />
+                              ))}
+                            </div>
+                          </SortableContext>
+
+                          <div className="mt-2 space-y-2">
+                            <Textarea
+                              placeholder="Saisir un titre pour cette carte..."
+                              value={newCardTitle}
+                              onChange={(e) => setNewCardTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault()
+                                  handleSaveNewCard()
+                                } else if (e.key === "Escape") {
+                                  setAddingCardListId(null)
+                                  setNewCardTitle("")
+                                }
+                              }}
+                              autoFocus
+                              className="resize-none"
+                              rows={2}
+                            />
+                            <div className="flex gap-2">
+                              <Button onClick={handleSaveNewCard} size="sm">
+                                Ajouter
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setAddingCardListId(null)
+                                  setNewCardTitle("")
+                                }}
+                              >
+                                Annuler
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ) : (
+                    <SortableList list={list} onCardClick={handleCardClick} onAddCard={handleAddCard} />
+                  )}
+                </div>
               ))}
 
               <div className="w-72 flex-shrink-0">
