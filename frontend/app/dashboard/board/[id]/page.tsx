@@ -15,12 +15,14 @@ import {
   useSensors,
   closestCorners,
   useDroppable,
+  type DragOverEvent,
 } from "@dnd-kit/core"
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
   horizontalListSortingStrategy,
+  arrayMove,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -51,6 +53,7 @@ type CardType = {
   description: string
   start_date: string
   due_date: string
+  position: number
 }
 
 type ListType = {
@@ -58,7 +61,6 @@ type ListType = {
   board_id: number
   title: string
   position: number
-  cards: CardType[]
 }
 
 const boardLabels: Record<string, LabelType[]> = {
@@ -74,81 +76,71 @@ const boardLabels: Record<string, LabelType[]> = {
 
 const initialListsData: Record<string, ListType[]> = {
   "1": [
+    { id: 1, board_id: 1, title: "À faire", position: 0 },
+    { id: 2, board_id: 1, title: "En cours", position: 1 },
+    { id: 3, board_id: 1, title: "Terminé", position: 2 },
+  ],
+}
+
+const initialCardsData: Record<string, CardType[]> = {
+  "1": [
     {
       id: 1,
-      board_id: 1,
-      title: "À faire",
+      list_id: 1,
+      label_id: 1,
+      title: "Créer la maquette",
+      description: "Design de la page d'accueil",
+      start_date: "2025-01-05T00:00:00.000Z",
+      due_date: "2025-01-15T00:00:00.000Z",
       position: 0,
-      cards: [
-        {
-          id: 1,
-          list_id: 1,
-          label_id: 1,
-          title: "Créer la maquette",
-          description: "Design de la page d'accueil",
-          start_date: "2025-01-05T00:00:00.000Z",
-          due_date: "2025-01-15T00:00:00.000Z",
-        },
-        {
-          id: 2,
-          list_id: 1,
-          label_id: 3,
-          title: "Rédiger le contenu",
-          description: "Textes pour les sections",
-          start_date: "2025-01-06T00:00:00.000Z",
-          due_date: "2025-01-20T00:00:00.000Z",
-        },
-      ],
     },
     {
       id: 2,
-      board_id: 1,
-      title: "En cours",
+      list_id: 1,
+      label_id: 3,
+      title: "Rédiger le contenu",
+      description: "Textes pour les sections",
+      start_date: "2025-01-06T00:00:00.000Z",
+      due_date: "2025-01-20T00:00:00.000Z",
       position: 1,
-      cards: [
-        {
-          id: 3,
-          list_id: 2,
-          label_id: 2,
-          title: "Développer le header",
-          description: "Composant React",
-          start_date: "2025-01-07T00:00:00.000Z",
-          due_date: "2025-01-10T00:00:00.000Z",
-        },
-      ],
     },
     {
       id: 3,
-      board_id: 1,
-      title: "Terminé",
-      position: 2,
-      cards: [
-        {
-          id: 4,
-          list_id: 3,
-          label_id: null,
-          title: "Setup du projet",
-          description: "Configuration initiale",
-          start_date: "2025-01-01T00:00:00.000Z",
-          due_date: "2025-01-03T00:00:00.000Z",
-        },
-        {
-          id: 5,
-          list_id: 3,
-          label_id: null,
-          title: "Installation des dépendances",
-          description: "npm install",
-          start_date: "2025-01-02T00:00:00.000Z",
-          due_date: "2025-01-03T00:00:00.000Z",
-        },
-      ],
+      list_id: 2,
+      label_id: 2,
+      title: "Développer le header",
+      description: "Composant React",
+      start_date: "2025-01-07T00:00:00.000Z",
+      due_date: "2025-01-10T00:00:00.000Z",
+      position: 0,
+    },
+    {
+      id: 4,
+      list_id: 3,
+      label_id: null,
+      title: "Setup du projet",
+      description: "Configuration initiale",
+      start_date: "2025-01-01T00:00:00.000Z",
+      due_date: "2025-01-03T00:00:00.000Z",
+      position: 0,
+    },
+    {
+      id: 5,
+      list_id: 3,
+      label_id: null,
+      title: "Installation des dépendances",
+      description: "npm install",
+      start_date: "2025-01-02T00:00:00.000Z",
+      due_date: "2025-01-03T00:00:00.000Z",
+      position: 1,
     },
   ],
 }
 
 function SortableCard({ card, label, onClick }: { card: CardType; label: LabelType | undefined; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: card.id.toString(),
+    id: `card-${card.id}`,
+    data: { type: "card", card },
   })
 
   const style = {
@@ -194,20 +186,22 @@ function SortableCard({ card, label, onClick }: { card: CardType; label: LabelTy
 
 function DroppableList({
   list,
+  cards,
   labels,
   dragHandleProps,
   onCardClick,
   onAddCard,
 }: {
   list: ListType
+  cards: CardType[]
   labels: LabelType[]
   dragHandleProps?: any
   onCardClick: (card: CardType) => void
   onAddCard: () => void
 }) {
-  const { setNodeRef } = useDroppable({
-    id: list.id.toString(),
-    data: { type: "list" },
+  const { setNodeRef, isOver } = useDroppable({
+    id: `list-${list.id}`,
+    data: { type: "list", list },
   })
 
   return (
@@ -219,19 +213,25 @@ function DroppableList({
               <GripVertical className="h-4 w-4 text-muted-foreground" />
             </div>
             <h2 className="font-semibold text-foreground">{list.title}</h2>
+            <span className="text-sm text-muted-foreground">({cards.length})</span>
           </div>
           <Button variant="ghost" size="icon" className="h-6 w-6">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </div>
 
-        <div ref={setNodeRef} className="min-h-[100px]">
-          <SortableContext items={list.cards.map((c) => c.id.toString())} strategy={verticalListSortingStrategy}>
+        <div ref={setNodeRef} className={`min-h-[100px] rounded ${isOver ? "bg-accent/50" : ""}`}>
+          <SortableContext items={cards.map((c) => `card-${c.id}`)} strategy={verticalListSortingStrategy}>
             <div className="space-y-2">
-              {list.cards.map((card) => {
+              {cards.map((card) => {
                 const cardLabel = labels.find((l) => l.id === card.label_id)
                 return <SortableCard key={card.id} card={card} label={cardLabel} onClick={() => onCardClick(card)} />
               })}
+              {cards.length === 0 && (
+                <div className="flex h-20 items-center justify-center rounded border-2 border-dashed border-muted-foreground/20">
+                  <p className="text-sm text-muted-foreground">Déposez une carte ici</p>
+                </div>
+              )}
             </div>
           </SortableContext>
         </div>
@@ -251,18 +251,20 @@ function DroppableList({
 
 function SortableList({
   list,
+  cards,
   labels,
   onCardClick,
   onAddCard,
 }: {
   list: ListType
+  cards: CardType[]
   labels: LabelType[]
   onCardClick: (card: CardType) => void
   onAddCard: (listId: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: list.id.toString(),
-    data: { type: "list" },
+    id: `list-${list.id}`,
+    data: { type: "list", list },
   })
 
   const style = {
@@ -275,6 +277,7 @@ function SortableList({
     <div ref={setNodeRef} style={style} className="w-72 flex-shrink-0">
       <DroppableList
         list={list}
+        cards={cards}
         labels={labels}
         dragHandleProps={{ ...attributes, ...listeners }}
         onCardClick={onCardClick}
@@ -288,8 +291,8 @@ export default function BoardPage({ params }: { params: { id: string } }) {
   const { id } = params
   const board = boardsData[id as keyof typeof boardsData]
   const labels = boardLabels[id] || []
-
   const [lists, setLists] = useState<ListType[]>(initialListsData[id] || [])
+  const [cards, setCards] = useState<CardType[]>(initialCardsData[id] || [])
   const [activeCard, setActiveCard] = useState<CardType | null>(null)
   const [activeList, setActiveList] = useState<ListType | null>(null)
   const [selectedCard, setSelectedCard] = useState<CardType | null>(null)
@@ -308,6 +311,10 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     }),
   )
 
+  function getCardsForList(listId: number): CardType[] {
+    return cards.filter((card) => card.list_id === listId).sort((a, b) => a.position - b.position)
+  }
+
   function handleCardClick(card: CardType) {
     setSelectedCard(card)
     setEditedCard({ ...card })
@@ -317,12 +324,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
   function handleSaveCard() {
     if (!editedCard) return
 
-    setLists(
-      lists.map((list) => ({
-        ...list,
-        cards: list.cards.map((card) => (card.id === editedCard.id ? editedCard : card)),
-      })),
-    )
+    setCards(cards.map((card) => (card.id === editedCard.id ? editedCard : card)))
 
     setIsDialogOpen(false)
     setSelectedCard(null)
@@ -333,15 +335,30 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     const { active } = event
 
     if (active.data.current?.type === "list") {
-      const list = lists.find((list) => list.id.toString() === active.id)
-      if (list) {
-        setActiveList(list)
-      }
-    } else {
-      const activeList = lists.find((list) => list.cards.some((card) => card.id.toString() === active.id))
-      const card = activeList?.cards.find((card) => card.id.toString() === active.id)
-      if (card) {
-        setActiveCard(card)
+      setActiveList(active.data.current.list)
+    } else if (active.data.current?.type === "card") {
+      setActiveCard(active.data.current.card)
+    }
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event
+    if (!over) return
+
+    const activeType = active.data.current?.type
+    const overType = over.data.current?.type
+    if (activeType === "card") {
+      const activeCard = active.data.current?.card as CardType
+      const overListId =
+        overType === "list" ? over.data.current?.list.id : overType === "card" ? over.data.current?.card.list_id : null
+
+      if (overListId && activeCard.list_id !== overListId) {
+        setCards((prevCards) => {
+          const updatedCards = prevCards.map((card) =>
+            card.id === activeCard.id ? { ...card, list_id: overListId } : card,
+          )
+          return updatedCards
+        })
       }
     }
   }
@@ -353,61 +370,66 @@ export default function BoardPage({ params }: { params: { id: string } }) {
 
     if (!over) return
 
-    if (active.data.current?.type === "list") {
-      const activeListId = active.id as string
-      const overListId = over.id as string
+    const activeType = active.data.current?.type
+    const overType = over.data.current?.type
+    if (activeType === "list" && overType === "list") {
+      const activeList = active.data.current?.list as ListType
+      const overList = over.data.current?.list as ListType
 
-      const activeIndex = lists.findIndex((list) => list.id.toString() === activeListId)
-      const overIndex = lists.findIndex((list) => list.id.toString() === overListId)
+      const activeIndex = lists.findIndex((l) => l.id === activeList.id)
+      const overIndex = lists.findIndex((l) => l.id === overList.id)
 
       if (activeIndex !== overIndex) {
-        const newLists = [...lists]
-        const [movedList] = newLists.splice(activeIndex, 1)
-        newLists.splice(overIndex, 0, movedList)
-
+        const newLists = arrayMove(lists, activeIndex, overIndex)
         const updatedLists = newLists.map((list, index) => ({ ...list, position: index }))
         setLists(updatedLists)
       }
       return
     }
+    if (activeType === "card") {
+      const activeCard = active.data.current?.card as CardType
 
-    const activeCardId = active.id as string
-    const sourceList = lists.find((list) => list.cards.some((card) => card.id.toString() === activeCardId))
+      let targetListId: number
+      let targetPosition: number
 
-    if (!sourceList) return
+      if (overType === "list") {
+        targetListId = over.data.current?.list.id
+        const cardsInList = cards.filter((c) => c.list_id === targetListId)
+        targetPosition = cardsInList.length
+      } else if (overType === "card") {
+        const overCard = over.data.current?.card as CardType
+        targetListId = overCard.list_id
+        const cardsInList = cards.filter((c) => c.list_id === targetListId).sort((a, b) => a.position - b.position)
+        const overIndex = cardsInList.findIndex((c) => c.id === overCard.id)
+        targetPosition = overIndex
+      } else {
+        return
+      }
 
-    let destList = lists.find((list) => list.id.toString() === over.id)
+      setCards((prevCards) => {
+        const sourceListId = activeCard.list_id
+        let updatedCards = prevCards.filter((c) => c.id !== activeCard.id)
+        const targetListCards = updatedCards
+          .filter((c) => c.list_id === targetListId)
+          .sort((a, b) => a.position - b.position)
+        const newCard = { ...activeCard, list_id: targetListId, position: targetPosition }
+        targetListCards.splice(targetPosition, 0, newCard)
+        const reorderedTargetCards = targetListCards.map((card, index) => ({ ...card, position: index }))
+        updatedCards = updatedCards.filter((c) => c.list_id !== targetListId)
+        updatedCards = [...updatedCards, ...reorderedTargetCards]
+        if (sourceListId === targetListId) {
+          return updatedCards
+        }
+        const sourceListCards = updatedCards
+          .filter((c) => c.list_id === sourceListId)
+          .sort((a, b) => a.position - b.position)
+          .map((card, index) => ({ ...card, position: index }))
 
-    if (!destList) {
-      destList = lists.find((list) => list.cards.some((card) => card.id.toString() === over.id))
-    }
+        updatedCards = updatedCards.filter((c) => c.list_id !== sourceListId)
+        updatedCards = [...updatedCards, ...sourceListCards]
 
-    if (!destList) return
-
-    const sourceCardIndex = sourceList.cards.findIndex((card) => card.id.toString() === activeCardId)
-    const overCardId = over.id as string
-    const destCardIndex = destList.cards.findIndex((card) => card.id.toString() === overCardId)
-
-    if (sourceList.id === destList.id) {
-      const newCards = [...sourceList.cards]
-      const [movedCard] = newCards.splice(sourceCardIndex, 1)
-      newCards.splice(destCardIndex >= 0 ? destCardIndex : newCards.length, 0, movedCard)
-
-      setLists(lists.map((list) => (list.id === sourceList.id ? { ...list, cards: newCards } : list)))
-    } else {
-      const sourceCards = [...sourceList.cards]
-      const destCards = [...destList.cards]
-      const [movedCard] = sourceCards.splice(sourceCardIndex, 1)
-      movedCard.list_id = destList.id
-      destCards.splice(destCardIndex >= 0 ? destCardIndex : destCards.length, 0, movedCard)
-
-      setLists(
-        lists.map((list) => {
-          if (list.id === sourceList.id) return { ...list, cards: sourceCards }
-          if (list.id === destList.id) return { ...list, cards: destCards }
-          return list
-        }),
-      )
+        return updatedCards
+      })
     }
   }
 
@@ -419,7 +441,6 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       board_id: board.id,
       title: newListTitle,
       position: lists.length,
-      cards: [],
     }
 
     setLists([...lists, newList])
@@ -435,6 +456,8 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     if (!newCardTitle.trim() || !addingCardListId) return
 
     const now = new Date().toISOString()
+    const cardsInList = cards.filter((c) => c.list_id === addingCardListId)
+
     const newCard: CardType = {
       id: Date.now(),
       list_id: addingCardListId,
@@ -443,17 +466,10 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       description: "",
       start_date: now,
       due_date: now,
+      position: cardsInList.length,
     }
 
-    setLists(
-      lists.map((list) => {
-        if (list.id === addingCardListId) {
-          return { ...list, cards: [...list.cards, newCard] }
-        }
-        return list
-      }),
-    )
-
+    setCards([...cards, newCard])
     setNewCardTitle("")
     setAddingCardListId(null)
   }
@@ -479,82 +495,93 @@ export default function BoardPage({ params }: { params: { id: string } }) {
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext items={lists.map((list) => list.id.toString())} strategy={horizontalListSortingStrategy}>
+          <SortableContext items={lists.map((list) => `list-${list.id}`)} strategy={horizontalListSortingStrategy}>
             <div className="flex gap-4">
-              {lists.map((list) => (
-                <div key={list.id} className="w-72 flex-shrink-0">
-                  {addingCardListId === list.id ? (
-                    <Card className="bg-background">
-                      <div className="p-3">
-                        <div className="mb-3 flex items-center gap-2">
-                          <GripVertical className="h-4 w-4 text-muted-foreground" />
-                          <h2 className="font-semibold text-foreground">{list.title}</h2>
-                        </div>
+              {lists.map((list) => {
+                const listCards = getCardsForList(list.id)
 
-                        <div className="min-h-[100px]">
-                          <SortableContext
-                            items={list.cards.map((c) => c.id.toString())}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            <div className="space-y-2">
-                              {list.cards.map((card) => {
-                                const cardLabel = labels.find((l) => l.id === card.label_id)
-                                return (
-                                  <SortableCard
-                                    key={card.id}
-                                    card={card}
-                                    label={cardLabel}
-                                    onClick={() => handleCardClick(card)}
-                                  />
-                                )
-                              })}
-                            </div>
-                          </SortableContext>
+                return (
+                  <div key={list.id} className="w-72 flex-shrink-0">
+                    {addingCardListId === list.id ? (
+                      <Card className="bg-background">
+                        <div className="p-3">
+                          <div className="mb-3 flex items-center gap-2">
+                            <GripVertical className="h-4 w-4 text-muted-foreground" />
+                            <h2 className="font-semibold text-foreground">{list.title}</h2>
+                          </div>
 
-                          <div className="mt-2 space-y-2">
-                            <Textarea
-                              placeholder="Saisir un titre pour cette carte..."
-                              value={newCardTitle}
-                              onChange={(e) => setNewCardTitle(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                  e.preventDefault()
-                                  handleSaveNewCard()
-                                } else if (e.key === "Escape") {
-                                  setAddingCardListId(null)
-                                  setNewCardTitle("")
-                                }
-                              }}
-                              autoFocus
-                              className="resize-none"
-                              rows={2}
-                            />
-                            <div className="flex gap-2">
-                              <Button onClick={handleSaveNewCard} size="sm">
-                                Ajouter
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setAddingCardListId(null)
-                                  setNewCardTitle("")
+                          <div className="min-h-[100px]">
+                            <SortableContext
+                              items={listCards.map((c) => `card-${c.id}`)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              <div className="space-y-2">
+                                {listCards.map((card) => {
+                                  const cardLabel = labels.find((l) => l.id === card.label_id)
+                                  return (
+                                    <SortableCard
+                                      key={card.id}
+                                      card={card}
+                                      label={cardLabel}
+                                      onClick={() => handleCardClick(card)}
+                                    />
+                                  )
+                                })}
+                              </div>
+                            </SortableContext>
+
+                            <div className="mt-2 space-y-2">
+                              <Textarea
+                                placeholder="Saisir un titre pour cette carte..."
+                                value={newCardTitle}
+                                onChange={(e) => setNewCardTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault()
+                                    handleSaveNewCard()
+                                  } else if (e.key === "Escape") {
+                                    setAddingCardListId(null)
+                                    setNewCardTitle("")
+                                  }
                                 }}
-                              >
-                                Annuler
-                              </Button>
+                                autoFocus
+                                className="resize-none"
+                                rows={2}
+                              />
+                              <div className="flex gap-2">
+                                <Button onClick={handleSaveNewCard} size="sm">
+                                  Ajouter
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setAddingCardListId(null)
+                                    setNewCardTitle("")
+                                  }}
+                                >
+                                  Annuler
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </Card>
-                  ) : (
-                    <SortableList list={list} labels={labels} onCardClick={handleCardClick} onAddCard={handleAddCard} />
-                  )}
-                </div>
-              ))}
+                      </Card>
+                    ) : (
+                      <SortableList
+                        list={list}
+                        cards={listCards}
+                        labels={labels}
+                        onCardClick={handleCardClick}
+                        onAddCard={handleAddCard}
+                      />
+                    )}
+                  </div>
+                )
+              })}
 
               <div className="w-72 flex-shrink-0">
                 {isAddingList ? (
@@ -614,7 +641,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
                       <h2 className="font-semibold text-foreground">{activeList.title}</h2>
                     </div>
                     <div className="space-y-2">
-                      {activeList.cards.map((card) => {
+                      {getCardsForList(activeList.id).map((card) => {
                         const cardLabel = labels.find((l) => l.id === card.label_id)
                         return (
                           <Card key={card.id} className="p-3">
@@ -637,7 +664,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
                 </Card>
               </div>
             ) : activeCard ? (
-              <Card className="cursor-grabbing p-3 shadow-lg">
+              <Card className="w-72 cursor-grabbing p-3 shadow-lg">
                 <h3 className="mb-1 font-medium text-foreground">{activeCard.title}</h3>
                 <p className="text-sm text-muted-foreground">{activeCard.description}</p>
               </Card>
