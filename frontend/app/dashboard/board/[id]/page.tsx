@@ -41,6 +41,8 @@ type CardType = {
   title: string
   description: string
   label?: string
+  member?: string
+  dueDate?: string
 }
 
 type ListType = {
@@ -59,6 +61,7 @@ const initialListsData: ListType[] = [
         title: "Créer la maquette",
         description: "Design de la page d'accueil",
         label: "Design",
+        member: "Alice",
       },
       {
         id: "card-2",
@@ -77,6 +80,7 @@ const initialListsData: ListType[] = [
         title: "Développer le header",
         description: "Composant React",
         label: "Dev",
+        dueDate: "2025-01-10",
       },
     ],
   },
@@ -119,6 +123,12 @@ function SortableCard({ card, onClick }: { card: CardType; onClick: () => void }
           <Badge variant="secondary" className="flex items-center gap-1 text-xs">
             <Tag className="h-3 w-3" />
             {card.label}
+          </Badge>
+        )}
+        {card.dueDate && (
+          <Badge variant="outline" className="flex items-center gap-1 text-xs">
+            <Calendar className="h-3 w-3" />
+            {new Date(card.dueDate).toLocaleDateString("fr-FR")}
           </Badge>
         )}
       </div>
@@ -423,6 +433,15 @@ export default function BoardPage({ params }: { params: { id: string } }) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Date d'échéance</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={editedCard.dueDate || ""}
+                  onChange={(e) => setEditedCard({ ...editedCard, dueDate: e.target.value })}
+                />
               </div>
             </div>
           )}
