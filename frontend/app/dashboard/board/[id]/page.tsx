@@ -62,12 +62,14 @@ const initialListsData: ListType[] = [
         description: "Design de la page d'accueil",
         label: "Design",
         member: "Alice",
+        dueDate: "2025-01-15",
       },
       {
         id: "card-2",
         title: "Rédiger le contenu",
         description: "Textes pour les sections",
         label: "Contenu",
+        member: "Bob",
       },
     ],
   },
@@ -80,6 +82,7 @@ const initialListsData: ListType[] = [
         title: "Développer le header",
         description: "Composant React",
         label: "Dev",
+        member: "Charlie",
         dueDate: "2025-01-10",
       },
     ],
@@ -95,6 +98,7 @@ const initialListsData: ListType[] = [
 ]
 
 const LABELS = ["Design", "Dev", "Contenu", "Bug", "Feature", "Urgent"]
+const MEMBERS = ["Alice", "Bob", "Charlie", "David", "Eve"]
 
 function SortableCard({ card, onClick }: { card: CardType; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -123,6 +127,12 @@ function SortableCard({ card, onClick }: { card: CardType; onClick: () => void }
           <Badge variant="secondary" className="flex items-center gap-1 text-xs">
             <Tag className="h-3 w-3" />
             {card.label}
+          </Badge>
+        )}
+        {card.member && (
+          <Badge variant="outline" className="flex items-center gap-1 text-xs">
+            <User className="h-3 w-3" />
+            {card.member}
           </Badge>
         )}
         {card.dueDate && (
@@ -211,6 +221,8 @@ export default function BoardPage({ params }: { params: { id: string } }) {
   const [selectedCard, setSelectedCard] = useState<CardType | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editedCard, setEditedCard] = useState<CardType | null>(null)
+  const [isAddingList, setIsAddingList] = useState(false)
+  const [newListTitle, setNewListTitle] = useState("")
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -320,6 +332,20 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     }
   }
 
+  function handleAddList() {
+    if (!newListTitle.trim()) return
+
+    const newList: ListType = {
+      id: `list-${Date.now()}`,
+      title: newListTitle,
+      cards: [],
+    }
+
+    setLists([...lists, newList])
+    setNewListTitle("")
+    setIsAddingList(false)
+  }
+
   if (!board) {
     return <div>Board not found</div>
   }
@@ -336,7 +362,6 @@ export default function BoardPage({ params }: { params: { id: string } }) {
           <h1 className="text-2xl font-bold text-white">{board.name}</h1>
         </div>
       </div>
-
       <div className="flex-1 overflow-x-auto bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
         <DndContext
           sensors={sensors}
@@ -351,10 +376,49 @@ export default function BoardPage({ params }: { params: { id: string } }) {
               ))}
 
               <div className="w-72 flex-shrink-0">
-                <Button variant="ghost" className="w-full justify-start gap-2 bg-white/50 hover:bg-white/80">
-                  <Plus className="h-4 w-4" />
-                  Ajouter une liste
-                </Button>
+                {isAddingList ? (
+                  <Card className="bg-white p-3">
+                    <Input
+                      placeholder="Titre de la liste"
+                      value={newListTitle}
+                      onChange={(e) => setNewListTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleAddList()
+                        } else if (e.key === "Escape") {
+                          setIsAddingList(false)
+                          setNewListTitle("")
+                        }
+                      }}
+                      autoFocus
+                      className="mb-2"
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={handleAddList} size="sm">
+                        Ajouter
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsAddingList(false)
+                          setNewListTitle("")
+                        }}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </Card>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 bg-white/50 hover:bg-white/80"
+                    onClick={() => setIsAddingList(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Ajouter une liste
+                  </Button>
+                )}
               </div>
             </div>
           </SortableContext>
@@ -434,6 +498,27 @@ export default function BoardPage({ params }: { params: { id: string } }) {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="member">Membre</Label>
+                <Select
+                  value={editedCard.member || "Aucun"}
+                  onValueChange={(value) => setEditedCard({ ...editedCard, member: value })}
+                >
+                  <SelectTrigger id="member">
+                    <SelectValue placeholder="Sélectionner un membre" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Aucun">Aucun</SelectItem>
+                    {MEMBERS.map((member) => (
+                      <SelectItem key={member} value={member}>
+                        {member}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="dueDate">Date d'échéance</Label>
                 <Input
