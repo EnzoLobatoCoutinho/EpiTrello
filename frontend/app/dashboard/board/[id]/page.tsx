@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Plus, MoreHorizontal, GripVertical, Tag, Calendar } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   DndContext,
   type DragEndEvent,
@@ -31,12 +31,6 @@ import { Label as UILabel } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-
-const boardsData = {
-  "1": { id: 1, workspace_id: 1, title: "Project Alpha", color: "bg-blue-500" },
-  "2": { id: 2, workspace_id: 1, title: "Marketing Campaign", color: "bg-green-500" },
-  "3": { id: 3, workspace_id: 1, title: "Design System", color: "bg-purple-500" },
-}
 
 type LabelType = {
   id: number
@@ -71,69 +65,6 @@ const boardLabels: Record<string, LabelType[]> = {
     { id: 4, board_id: 1, name: "Bug", color: "#EF4444" },
     { id: 5, board_id: 1, name: "Feature", color: "#F59E0B" },
     { id: 6, board_id: 1, name: "Urgent", color: "#DC2626" },
-  ],
-}
-
-const initialListsData: Record<string, ListType[]> = {
-  "1": [
-    { id: 1, board_id: 1, title: "À faire", position: 0 },
-    { id: 2, board_id: 1, title: "En cours", position: 1 },
-    { id: 3, board_id: 1, title: "Terminé", position: 2 },
-  ],
-}
-
-const initialCardsData: Record<string, CardType[]> = {
-  "1": [
-    {
-      id: 1,
-      list_id: 1,
-      label_id: 1,
-      title: "Créer la maquette",
-      description: "Design de la page d'accueil",
-      start_date: "2025-01-05T00:00:00.000Z",
-      due_date: "2025-01-15T00:00:00.000Z",
-      position: 0,
-    },
-    {
-      id: 2,
-      list_id: 1,
-      label_id: 3,
-      title: "Rédiger le contenu",
-      description: "Textes pour les sections",
-      start_date: "2025-01-06T00:00:00.000Z",
-      due_date: "2025-01-20T00:00:00.000Z",
-      position: 1,
-    },
-    {
-      id: 3,
-      list_id: 2,
-      label_id: 2,
-      title: "Développer le header",
-      description: "Composant React",
-      start_date: "2025-01-07T00:00:00.000Z",
-      due_date: "2025-01-10T00:00:00.000Z",
-      position: 0,
-    },
-    {
-      id: 4,
-      list_id: 3,
-      label_id: null,
-      title: "Setup du projet",
-      description: "Configuration initiale",
-      start_date: "2025-01-01T00:00:00.000Z",
-      due_date: "2025-01-03T00:00:00.000Z",
-      position: 0,
-    },
-    {
-      id: 5,
-      list_id: 3,
-      label_id: null,
-      title: "Installation des dépendances",
-      description: "npm install",
-      start_date: "2025-01-02T00:00:00.000Z",
-      due_date: "2025-01-03T00:00:00.000Z",
-      position: 1,
-    },
   ],
 }
 
@@ -289,10 +220,13 @@ function SortableList({
 
 export default function BoardPage({ params }: { params: { id: string } }) {
   const { id } = params
-  const board = boardsData[id as keyof typeof boardsData]
+  const [board, setBoard] = useState<{ id: number; title: string; color?: string; workspace_id?: number; description?: string } | null>(
+    null,
+  )
   const labels = boardLabels[id] || []
-  const [lists, setLists] = useState<ListType[]>(initialListsData[id] || [])
-  const [cards, setCards] = useState<CardType[]>(initialCardsData[id] || [])
+  const [lists, setLists] = useState<ListType[]>([])
+  const [cards, setCards] = useState<CardType[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeCard, setActiveCard] = useState<CardType | null>(null)
   const [activeList, setActiveList] = useState<ListType | null>(null)
   const [selectedCard, setSelectedCard] = useState<CardType | null>(null)
@@ -321,15 +255,102 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     setIsDialogOpen(true)
   }
 
-  function handleSaveCard() {
-    if (!editedCard) return
+  const handleSaveCard = async () => {
+  if (!editedCard) return;
 
-    setCards(cards.map((card) => (card.id === editedCard.id ? editedCard : card)))
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  
+  console.log("🔍 Tentative de sauvegarde:", {
+    cardId: editedCard.id,
+    listId: editedCard.list_id,
+    endpoint: `/api/dashboard/list/${editedCard.list_id}/cards/${editedCard.id}`
+  });
+  
+  try {
+    if (!token) {
+      console.log("⚠️ Pas de token, mise à jour locale uniquement");
+      setCards(prevCards => 
+        prevCards.map(card => 
+          card.id === editedCard.id ? { ...card, ...editedCard } : card
+        )
+      );
+      setIsDialogOpen(false);
+      return;
+    }
 
-    setIsDialogOpen(false)
-    setSelectedCard(null)
-    setEditedCard(null)
+    const response = await fetch(`/api/dashboard/list/${editedCard.list_id}/cards/${editedCard.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        title: editedCard.title,
+        description: editedCard.description,
+        label_id: editedCard.label_id,
+        start_date: editedCard.start_date,
+        due_date: editedCard.due_date,
+        list_id: editedCard.list_id,
+      }),
+    });
+
+    console.log("📡 Réponse API:", {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const error = await response.json();
+        console.error("❌ Erreur API (JSON):", error);
+      } else {
+        const text = await response.text();
+        console.error("❌ Erreur API (Texte):", text);
+      }
+      
+      setCards(prevCards => 
+        prevCards.map(card => 
+          card.id === editedCard.id ? { ...card, ...editedCard } : card
+        )
+      );
+      setIsDialogOpen(false);
+      return;
+    }
+
+    const updatedCard = await response.json();
+    console.log("✅ Carte mise à jour avec succès:", updatedCard);
+    
+    setCards(prevCards => 
+      prevCards.map(card => 
+        card.id === updatedCard.id 
+          ? {
+              ...card,
+              title: updatedCard.title,
+              description: updatedCard.description || "",
+              label_id: updatedCard.label_id,
+              start_date: updatedCard.start_date ? new Date(updatedCard.start_date).toISOString() : card.start_date,
+              due_date: updatedCard.due_date ? new Date(updatedCard.due_date).toISOString() : card.due_date,
+            }
+          : card
+      )
+    );
+    
+    setIsDialogOpen(false);
+    
+  } catch (error) {
+    console.error("💥 Erreur réseau:", error);
+    
+    setCards(prevCards => 
+      prevCards.map(card => 
+        card.id === editedCard.id ? { ...card, ...editedCard } : card
+      )
+    );
+    setIsDialogOpen(false);
   }
+};
+
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event
@@ -364,88 +385,194 @@ export default function BoardPage({ params }: { params: { id: string } }) {
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveCard(null)
-    setActiveList(null)
+  const { active, over } = event
+  if (!over) return
 
-    if (!over) return
+  const activeId = String(active.id)
+  const overId = String(over.id)
 
-    const activeType = active.data.current?.type
-    const overType = over.data.current?.type
-    if (activeType === "list" && overType === "list") {
-      const activeList = active.data.current?.list as ListType
-      const overList = over.data.current?.list as ListType
+  // Drag d'une carte
+  if (activeId.startsWith("card-") && overId.startsWith("card-")) {
+    const activeCardId = Number(activeId.replace("card-", ""))
+    const overCardId = Number(overId.replace("card-", ""))
 
-      const activeIndex = lists.findIndex((l) => l.id === activeList.id)
-      const overIndex = lists.findIndex((l) => l.id === overList.id)
+    const oldIndex = cards.findIndex((c) => c.id === activeCardId)
+    const newIndex = cards.findIndex((c) => c.id === overCardId)
 
-      if (activeIndex !== overIndex) {
-        const newLists = arrayMove(lists, activeIndex, overIndex)
-        const updatedLists = newLists.map((list, index) => ({ ...list, position: index }))
-        setLists(updatedLists)
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const reordered = arrayMove(cards, oldIndex, newIndex)
+      
+      const updatedCards = reordered.map((card, idx) => ({
+        ...card,
+        position: idx,
+      }))
+      
+      setCards(updatedCards)
+
+      const movedCards = updatedCards
+        .filter((card, idx) => {
+          const originalCard = cards[idx]
+          return originalCard && (card.id !== originalCard.id || card.position !== originalCard.position)
+        })
+        .map(card => ({
+          id: card.id,
+          position: card.position,
+          list_id: card.list_id,
+        }))
+
+      if (movedCards.length > 0) {
+        updateCardPositions(movedCards)
       }
-      return
-    }
-    if (activeType === "card") {
-      const activeCard = active.data.current?.card as CardType
-
-      let targetListId: number
-      let targetPosition: number
-
-      if (overType === "list") {
-        targetListId = over.data.current?.list.id
-        const cardsInList = cards.filter((c) => c.list_id === targetListId)
-        targetPosition = cardsInList.length
-      } else if (overType === "card") {
-        const overCard = over.data.current?.card as CardType
-        targetListId = overCard.list_id
-        const cardsInList = cards.filter((c) => c.list_id === targetListId).sort((a, b) => a.position - b.position)
-        const overIndex = cardsInList.findIndex((c) => c.id === overCard.id)
-        targetPosition = overIndex
-      } else {
-        return
-      }
-
-      setCards((prevCards) => {
-        const sourceListId = activeCard.list_id
-        let updatedCards = prevCards.filter((c) => c.id !== activeCard.id)
-        const targetListCards = updatedCards
-          .filter((c) => c.list_id === targetListId)
-          .sort((a, b) => a.position - b.position)
-        const newCard = { ...activeCard, list_id: targetListId, position: targetPosition }
-        targetListCards.splice(targetPosition, 0, newCard)
-        const reorderedTargetCards = targetListCards.map((card, index) => ({ ...card, position: index }))
-        updatedCards = updatedCards.filter((c) => c.list_id !== targetListId)
-        updatedCards = [...updatedCards, ...reorderedTargetCards]
-        if (sourceListId === targetListId) {
-          return updatedCards
-        }
-        const sourceListCards = updatedCards
-          .filter((c) => c.list_id === sourceListId)
-          .sort((a, b) => a.position - b.position)
-          .map((card, index) => ({ ...card, position: index }))
-
-        updatedCards = updatedCards.filter((c) => c.list_id !== sourceListId)
-        updatedCards = [...updatedCards, ...sourceListCards]
-
-        return updatedCards
-      })
     }
   }
 
+  // Drag d'une carte vers une liste (CORRIGÉ)
+  if (activeId.startsWith("card-") && overId.startsWith("list-")) {
+    const cardId = Number(activeId.replace("card-", ""))
+    const targetListId = Number(overId.replace("list-", ""))
+
+    const cardIndex = cards.findIndex((c) => c.id === cardId)
+    if (cardIndex === -1) return
+
+    const movedCard = cards[cardIndex]
+    if (movedCard.list_id === targetListId) return
+
+    // Récupérer la liste source de la carte
+    const sourceListId = movedCard.list_id
+
+    // Compter les cartes dans la liste cible
+    const cardsInTargetList = cards.filter((c) => c.list_id === targetListId)
+    const newPosition = cardsInTargetList.length
+
+    // Mettre à jour la carte localement
+    const updatedCards = cards.map((c) =>
+      c.id === cardId ? { ...c, list_id: targetListId, position: newPosition } : c
+    )
+
+    setCards(updatedCards)
+
+    // Mettre à jour en backend avec la NOUVELLE liste
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (token) {
+      fetch(`/api/dashboard/list/${targetListId}/cards/${cardId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          position: newPosition,
+          list_id: targetListId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("✅ Carte déplacée vers la liste", targetListId, ":", data)
+        })
+        .catch((error) => {
+          console.error("❌ Erreur lors du déplacement de la carte:", error)
+        })
+    }
+  }
+
+  // Drag d'une liste
+  if (activeId.startsWith("list-") && overId.startsWith("list-")) {
+    const activeListId = Number(activeId.replace("list-", ""))
+    const overListId = Number(overId.replace("list-", ""))
+
+    const oldIndex = lists.findIndex((l) => l.id === activeListId)
+    const newIndex = lists.findIndex((l) => l.id === overListId)
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const reordered = arrayMove(lists, oldIndex, newIndex)
+      const updatedLists = reordered.map((list, idx) => ({
+        ...list,
+        position: idx,
+      }))
+      setLists(updatedLists)
+
+      const movedLists = updatedLists
+        .filter((list, idx) => {
+          const originalList = lists[idx]
+          return originalList && (list.id !== originalList.id || list.position !== originalList.position)
+        })
+        .map(list => ({
+          id: list.id,
+          position: list.position,
+        }))
+
+      if (movedLists.length > 0) {
+        updateListPositions(movedLists)
+      }
+    }
+  }
+}
+
+  const updateListPositions = async (movedLists: { id: number; position: number }[]) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+  if (!token) return
+
+  try {
+    const updatePromises = movedLists.map(list =>
+      fetch(`/api/dashboard/board/${id}/lists/${list.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          position: list.position,
+        }),
+      })
+    )
+
+    await Promise.all(updatePromises)
+    console.log("✅ Positions des listes mises à jour avec succès")
+  } catch (error) {
+    console.error("❌ Erreur lors de la mise à jour des positions des listes:", error)
+  }
+}
+
   function handleAddList() {
     if (!newListTitle.trim()) return
-
-    const newList: ListType = {
-      id: Date.now(),
-      board_id: board.id,
-      title: newListTitle,
-      position: lists.length,
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      const newList: ListType = {
+        id: Date.now(),
+        board_id: board?.id ?? Number(id),
+        title: newListTitle,
+        position: lists.length,
+      }
+      setLists((s) => [...s, newList])
+      setNewListTitle("")
+      setIsAddingList(false)
+      return
     }
 
-    setLists([...lists, newList])
-    setNewListTitle("")
-    setIsAddingList(false)
+    fetch(`/api/dashboard/board/${id}/lists`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title: newListTitle }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.id) {
+          setLists((s) => [...s, { id: Number(data.id), board_id: Number(id), title: data.title, position: data.position ?? s.length }])
+        }
+      })
+      .catch(() => {
+        const newList: ListType = {
+          id: Date.now(),
+          board_id: board?.id ?? Number(id),
+          title: newListTitle,
+          position: lists.length,
+        }
+        setLists((s) => [...s, newList])
+      })
+      .finally(() => {
+        setNewListTitle("")
+        setIsAddingList(false)
+      })
   }
 
   function handleAddCard(listId: number) {
@@ -454,34 +581,165 @@ export default function BoardPage({ params }: { params: { id: string } }) {
 
   function handleSaveNewCard() {
     if (!newCardTitle.trim() || !addingCardListId) return
-
-    const now = new Date().toISOString()
-    const cardsInList = cards.filter((c) => c.list_id === addingCardListId)
-
-    const newCard: CardType = {
-      id: Date.now(),
-      list_id: addingCardListId,
-      label_id: null,
-      title: newCardTitle,
-      description: "",
-      start_date: now,
-      due_date: now,
-      position: cardsInList.length,
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      const now = new Date().toISOString()
+      const cardsInList = cards.filter((c) => c.list_id === addingCardListId)
+      const newCard: CardType = {
+        id: Date.now(),
+        list_id: addingCardListId,
+        label_id: null,
+        title: newCardTitle,
+        description: "",
+        start_date: now,
+        due_date: now,
+        position: cardsInList.length,
+      }
+      setCards((s) => [...s, newCard])
+      setNewCardTitle("")
+      setAddingCardListId(null)
+      return
     }
 
-    setCards([...cards, newCard])
-    setNewCardTitle("")
-    setAddingCardListId(null)
+    fetch(`/api/dashboard/list/${addingCardListId}/cards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title: newCardTitle }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.id) {
+          const card = {
+            id: Number(data.id),
+            list_id: Number(data.list_id || addingCardListId),
+            label_id: data.label_id ? Number(data.label_id) : null,
+            title: data.title,
+            description: data.description || "",
+            start_date: data.start_date ? new Date(data.start_date).toISOString() : new Date().toISOString(),
+            due_date: data.due_date ? new Date(data.due_date).toISOString() : new Date().toISOString(),
+            position: data.position ?? cards.filter((c) => c.list_id === addingCardListId).length,
+          }
+          setCards((s) => [...s, card])
+        }
+      })
+      .catch(() => {
+        const now = new Date().toISOString()
+        const cardsInList = cards.filter((c) => c.list_id === addingCardListId)
+        const newCard: CardType = {
+          id: Date.now(),
+          list_id: addingCardListId,
+          label_id: null,
+          title: newCardTitle,
+          description: "",
+          start_date: now,
+          due_date: now,
+          position: cardsInList.length,
+        }
+        setCards((s) => [...s, newCard])
+      })
+      .finally(() => {
+        setNewCardTitle("")
+        setAddingCardListId(null)
+      })
   }
 
+  const updateCardPositions = async (movedCards: { id: number; position: number; list_id: number }[]) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+  if (!token) return
+
+  try {
+    const updatePromises = movedCards.map(card =>
+      fetch(`/api/dashboard/list/${card.list_id}/cards/${card.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          position: card.position,
+          list_id: card.list_id,
+        }),
+      })
+    )
+
+    await Promise.all(updatePromises)
+    console.log("✅ Positions mises à jour avec succès")
+  } catch (error) {
+    console.error("❌ Erreur lors de la mise à jour des positions:", error)
+  }
+}
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      setLoading(true)
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+      try {
+        const res = await fetch(`/api/dashboard/board/${id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+        if (!res.ok) {
+          // keep defaults and stop
+          setLoading(false)
+          return
+        }
+        const data = await res.json()
+        if (!mounted) return
+        // API returns boardsData and lists
+        const bd = data.boardsData && data.boardsData[String(id)]
+        if (bd) {
+          setBoard({ id: Number(id), title: bd.name ?? bd.title ?? `Board ${id}`, color: bd.color })
+        } else if (data.board) {
+          setBoard({ id: Number(id), title: data.board.title, color: data.board.color })
+        }
+
+        const apiLists = Array.isArray(data.lists) ? data.lists : data.lists ?? []
+        const mappedLists: ListType[] = apiLists.map((l: any, idx: number) => ({
+          id: Number(l.id),
+          board_id: Number(id),
+          title: l.title,
+          position: l.position ?? idx,
+        }))
+        setLists(mappedLists)
+
+        // flatten cards
+        const mappedCards: CardType[] = []
+        apiLists.forEach((l: any) => {
+          ;(l.cards || []).forEach((c: any, idx: number) => {
+            mappedCards.push({
+              id: Number(c.id),
+              list_id: Number(l.id),
+              label_id: c.label_id ? Number(c.label_id) : null,
+              title: c.title,
+              description: c.description || "",
+              start_date: c.start_date ? new Date(c.start_date).toISOString() : new Date().toISOString(),
+              due_date: c.due_date ? new Date(c.due_date).toISOString() : new Date().toISOString(),
+              position: c.position ?? idx,
+            })
+          })
+        })
+        setCards(mappedCards)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    load()
+    return () => {
+      mounted = false
+    }
+  }, [id])
+
   if (!board) {
-    return <div>Board not found</div>
+    return <div className="flex items-center justify-center">Chargement</div>
   }
 
   return (
     <div className="flex h-screen flex-col">
-      <div className={`${board.color} p-4`}>
-        <div className="mb-4 flex items-center gap-4">
+    <div className={`${board.color} p-4`}>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <Link href="/dashboard">
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
               <ArrowLeft className="h-5 w-5" />
@@ -489,7 +747,11 @@ export default function BoardPage({ params }: { params: { id: string } }) {
           </Link>
           <h1 className="text-2xl font-bold text-white">{board.title}</h1>
         </div>
+        <Link href={`/dashboard/board/${id}/table`}>
+          <Button variant="secondary">Vue Tableur</Button>
+        </Link>
       </div>
+    </div>
       <div className="flex-1 overflow-x-auto bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
         <DndContext
           sensors={sensors}

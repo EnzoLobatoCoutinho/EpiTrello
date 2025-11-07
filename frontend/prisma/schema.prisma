@@ -56,13 +56,14 @@ model Label {
 }
 
 model Card {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   list_id     Int
-  label_id    Int
+  label_id    Int?
   title       String
   description String
   start_date  DateTime
   due_date    DateTime
-  list        List     @relation(fields: [list_id], references: [id])
-  label       Label    @relation(fields: [label_id], references: [id])
+  position    Int?
+  list        List      @relation(fields: [list_id], references: [id])
+  label       Label?    @relation(fields: [label_id], references: [id])
 }
