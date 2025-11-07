@@ -53,7 +53,7 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-lg border bg-white p-8 shadow-sm">
-          <h1 className="mb-6 text-center text-2xl font-semibold text-foreground">Log in to Trello</h1>
+          <h1 className="mb-6 text-center text-2xl font-semibold text-foreground">Connectez-vous à Trello</h1>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
@@ -61,7 +61,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder="Entrez votre email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -69,11 +69,11 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mot de passe</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Entrez votre mot de passe"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -81,15 +81,15 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
-              {loading ? "Connexion..." : "Log in"}
+              {loading ? "Connexion..." : "Se connecter"}
             </Button>
           </form>
         </div>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
+          Vous n'avez pas de compte ?{" "}
           <a href="/register" className="text-primary hover:underline">
-            Sign up
+            Inscrivez-vous
           </a>
         </div>
       </div>

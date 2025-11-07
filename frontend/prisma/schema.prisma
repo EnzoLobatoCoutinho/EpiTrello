@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -11,19 +12,19 @@ datasource db {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  email       String   @unique
-  username    String
-  password    String
-  workspaces  Workspace[]
+  id         Int         @id @default(autoincrement())
+  email      String      @unique
+  username   String
+  password   String
+  workspaces Workspace[]
 }
 
 model Workspace {
-  id          Int      @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   owner_id    Int
   description String
   status      String
-  owner       User     @relation(fields: [owner_id], references: [id])
+  owner       User    @relation(fields: [owner_id], references: [id])
   boards      Board[]
 }
 
@@ -55,13 +56,14 @@ model Label {
 }
 
 model Card {
-  id          Int    @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   list_id     Int
-  label_id    Int
+  label_id    Int?
   title       String
   description String
   start_date  DateTime
   due_date    DateTime
-  list        List   @relation(fields: [list_id], references: [id])
-  label       Label  @relation(fields: [label_id], references: [id])
+  position    Int?
+  list        List      @relation(fields: [list_id], references: [id])
+  label       Label?    @relation(fields: [label_id], references: [id])
 }

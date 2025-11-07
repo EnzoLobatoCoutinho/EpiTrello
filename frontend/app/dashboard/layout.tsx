@@ -9,7 +9,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex min-h-screen">
-      <aside className="w-64 border-r bg-card">
+      <aside className="w-64 border-r bg-card flex flex-col">
         <div className="flex h-16 items-center gap-2 border-b px-6">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-primary">
             <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
@@ -39,7 +39,8 @@ export default function DashboardLayout({
           </a>
         </nav>
 
-        <div className="absolute bottom-4 left-4 right-4">
+        <div className="flex-grow" />
+        <div className="p-4">
           <Button variant="outline" className="w-full justify-start gap-3 bg-transparent" asChild>
             <a href="/">
               <LogOut className="h-5 w-5" />

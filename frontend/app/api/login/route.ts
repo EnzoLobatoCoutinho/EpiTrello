@@ -20,9 +20,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Mot de passe incorrect" }, { status: 401 })
     }
 
+    const secret = process.env.JWT_SECRET
+    if (!secret) {
+      console.error("JWT_SECRET not set in environment")
+      return NextResponse.json({ error: "Erreur serveur: secret JWT manquant" }, { status: 500 })
+    }
+
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      process.env.JWT_SECRET || "dev_secret",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     )
 

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { ArrowLeft } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
@@ -117,6 +118,14 @@ export default function SettingsPage() {
 
   return (
     <div className="p-8">
+      <div className="mb-6">
+        <Button variant="ghost" className="gap-2" asChild>
+          <a href="/dashboard">
+            <ArrowLeft className="h-4 w-4" />
+            Retour au Dashboard
+          </a>
+        </Button>
+      </div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Paramètres</h1>
         <p className="text-muted-foreground">Gérer les paramètres de votre compte</p>
