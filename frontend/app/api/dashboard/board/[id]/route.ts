@@ -47,7 +47,8 @@ export async function GET(req: Request, context?: { params?: Promise<{ id?: stri
             },
         },
         include: {
-            lists: { include: { cards: true }, orderBy: { position: "asc" } },
+            // Include lists and for each list include cards and each card's label relation
+            lists: { include: { cards: { include: { label: true } } }, orderBy: { position: "asc" } },
             labels: true,
         },
     })
@@ -57,7 +58,17 @@ export async function GET(req: Request, context?: { params?: Promise<{ id?: stri
     const lists = (board.lists || []).map((l) => ({
         id: String(l.id),
         title: l.title,
-        cards: (l.cards || []).map((c) => ({ id: String(c.id), title: c.title, description: c.description })),
+        cards: (l.cards || []).map((c) => ({
+            id: String(c.id),
+            title: c.title,
+            description: c.description,
+            label_id: c.label_id ?? null,
+            // include nested label object if present
+            label: c.label ? { id: c.label.id, name: c.label.name, color: c.label.color } : null,
+            start_date: c.start_date ? c.start_date.toISOString() : null,
+            due_date: c.due_date ? c.due_date.toISOString() : null,
+            position: c.position ?? null,
+        })),
     }))
 
     const totalCards = lists.reduce((acc, l) => acc + l.cards.length, 0)
