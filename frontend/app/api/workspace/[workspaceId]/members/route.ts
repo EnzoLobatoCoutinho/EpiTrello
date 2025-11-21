@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: { workspaceId: str
   }
 
   const allowed = await userHasWorkspaceRole(me.id, workspaceId, ['OWNER', 'ADMIN', 'MEMBER'])
-  if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!allowed) return NextResponse.json({ error: 'Non autorisés' }, { status: 403 })
 
   try {
     const members = await prisma.workspaceMember.findMany({
@@ -50,7 +50,7 @@ export async function POST(req: Request, { params }: { params: { workspaceId: st
   if (!me) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const workspaceId = Number(params.workspaceId)
   const allowed = await userHasWorkspaceRole(me.id, workspaceId, ['OWNER', 'ADMIN'])
-  if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!allowed) return NextResponse.json({ error: 'Droits non autorisés' }, { status: 403 })
 
   const body = await req.json()
   let { userId, email, role } = body as { userId?: number; email?: string; role?: string }
@@ -69,7 +69,7 @@ export async function POST(req: Request, { params }: { params: { workspaceId: st
     if (!user) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
 
     const existing = await prisma.workspaceMember.findUnique({ where: { user_id_workspace_id: { user_id: Number(user.id), workspace_id: workspaceId } } })
-    if (existing) return NextResponse.json({ error: 'User already member' }, { status: 409 })
+    if (existing) return NextResponse.json({ error: 'Déja membre' }, { status: 409 })
 
   const member = await prisma.workspaceMember.create({ data: { user_id: Number(user.id), workspace_id: workspaceId, role: role as any } })
     return NextResponse.json({ member, user: { id: user.id, email: user.email, username: user.username } })
@@ -86,10 +86,10 @@ export async function PATCH(req: Request, { params }: { params: { workspaceId: s
   if (!me) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const workspaceId = Number(params.workspaceId)
   const allowed = await userHasWorkspaceRole(me.id, workspaceId, ['OWNER', 'ADMIN'])
-  if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!allowed) return NextResponse.json({ error: 'Droits non autorisés' }, { status: 403 })
 
   const { memberId, role } = await req.json()
-  if (!memberId || !role) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  if (!memberId || !role) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
   if (!['OWNER', 'ADMIN', 'MEMBER'].includes(role)) return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
 
   try {
@@ -106,11 +106,11 @@ export async function DELETE(req: Request, { params }: { params: { workspaceId: 
   if (!me) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const workspaceId = Number(params.workspaceId)
   const allowed = await userHasWorkspaceRole(me.id, workspaceId, ['OWNER', 'ADMIN'])
-  if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!allowed) return NextResponse.json({ error: 'Droits non autorisés' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const memberId = searchParams.get('memberId')
-  if (!memberId) return NextResponse.json({ error: 'Missing memberId' }, { status: 400 })
+  if (!memberId) return NextResponse.json({ error: 'Manque memberId' }, { status: 400 })
 
   try {
     await prisma.workspaceMember.delete({ where: { id: Number(memberId) } })
