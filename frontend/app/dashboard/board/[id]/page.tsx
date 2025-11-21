@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Plus, MoreHorizontal, GripVertical, Tag, Calendar } from "lucide-react"
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import {
   DndContext,
   type DragEndEvent,
@@ -25,7 +25,8 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import WorkspaceMembersButton from "@/components/workspace-members-button"
 import { Input } from "@/components/ui/input"
 import { Label as UILabel } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -55,17 +56,6 @@ type ListType = {
   board_id: number
   title: string
   position: number
-}
-
-const boardLabels: Record<string, LabelType[]> = {
-  "1": [
-    { id: 1, board_id: 1, name: "Design", color: "#8B5CF6" },
-    { id: 2, board_id: 1, name: "Dev", color: "#3B82F6" },
-    { id: 3, board_id: 1, name: "Contenu", color: "#10B981" },
-    { id: 4, board_id: 1, name: "Bug", color: "#EF4444" },
-    { id: 5, board_id: 1, name: "Feature", color: "#F59E0B" },
-    { id: 6, board_id: 1, name: "Urgent", color: "#DC2626" },
-  ],
 }
 
 function SortableCard({ card, label, onClick }: { card: CardType; label: LabelType | undefined; onClick: () => void }) {
@@ -218,12 +208,12 @@ function SortableList({
   )
 }
 
-export default function BoardPage({ params }: { params: { id: string } }) {
-  const { id } = params
+export default function BoardPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [board, setBoard] = useState<{ id: number; title: string; color?: string; workspace_id?: number; description?: string } | null>(
     null,
   )
-  const labels = boardLabels[id] || []
+  const [labels, setLabels] = useState<LabelType[]>([])
   const [lists, setLists] = useState<ListType[]>([])
   const [cards, setCards] = useState<CardType[]>([])
   const [loading, setLoading] = useState(true)
@@ -236,6 +226,11 @@ export default function BoardPage({ params }: { params: { id: string } }) {
   const [newListTitle, setNewListTitle] = useState("")
   const [addingCardListId, setAddingCardListId] = useState<number | null>(null)
   const [newCardTitle, setNewCardTitle] = useState("")
+  const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false)
+  const [newLabelName, setNewLabelName] = useState("")
+  const [newLabelColor, setNewLabelColor] = useState("#3b82f6")
+  const [labelMessage, setLabelMessage] = useState<string | null>(null)
+  const [creatingLabel, setCreatingLabel] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -244,6 +239,63 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       },
     }),
   )
+  async function tryParseJSON(response: Response) {
+    if (!response) return null
+    const contentType = response.headers.get("content-type") || ""
+    if (contentType.includes("application/json")) {
+      try {
+        return await response.json()
+      } catch (err) {
+        return null
+      }
+    }
+    return null
+  }
+
+  async function handleCreateLabel(e: React.FormEvent) {
+    e.preventDefault()
+    if (!board) return
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      setLabelMessage("Authentification requise")
+      return
+    }
+    setCreatingLabel(true)
+    setLabelMessage(null)
+    try {
+      const res = await fetch(`/api/dashboard/board/${board.id}/labels`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: newLabelName, color: newLabelColor }),
+      })
+      const data = await tryParseJSON(res)
+      if (!res.ok) {
+        throw new Error(data?.error || "Impossible de créer le label")
+      }
+      const createdLabel: LabelType = {
+        id: Number(data.label.id),
+        board_id: Number(data.label.board_id),
+        name: data.label.name,
+        color: data.label.color,
+      }
+      setLabels((prev) => [...prev, createdLabel])
+      setNewLabelName("")
+      setLabelMessage("Label créé")
+      setIsLabelDialogOpen(false)
+      if (editedCard) {
+        const newLabelId = createdLabel.id
+        setEditedCard({ ...editedCard, label_id: newLabelId })
+        setCards((prev) => prev.map((c) => (c.id === editedCard.id ? { ...c, label_id: newLabelId } : c)))
+      }
+    } catch (err: any) {
+      setLabelMessage(err?.message || "Erreur réseau")
+    } finally {
+      setCreatingLabel(false)
+    }
+  }
 
   function getCardsForList(listId: number): CardType[] {
     return cards.filter((card) => card.list_id === listId).sort((a, b) => a.position - b.position)
@@ -260,7 +312,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   
-  console.log("🔍 Tentative de sauvegarde:", {
+  console.log("Tentative de sauvegarde:", {
     cardId: editedCard.id,
     listId: editedCard.list_id,
     endpoint: `/api/dashboard/list/${editedCard.list_id}/cards/${editedCard.id}`
@@ -268,7 +320,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
   
   try {
     if (!token) {
-      console.log("⚠️ Pas de token, mise à jour locale uniquement");
+      console.log("Pas de token, mise à jour locale uniquement");
       setCards(prevCards => 
         prevCards.map(card => 
           card.id === editedCard.id ? { ...card, ...editedCard } : card
@@ -294,7 +346,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       }),
     });
 
-    console.log("📡 Réponse API:", {
+    console.log("Réponse API:", {
       status: response.status,
       statusText: response.statusText,
       ok: response.ok
@@ -304,10 +356,10 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
         const error = await response.json();
-        console.error("❌ Erreur API (JSON):", error);
+        console.error("Erreur API (JSON):", error);
       } else {
         const text = await response.text();
-        console.error("❌ Erreur API (Texte):", text);
+        console.error("Erreur API (Texte):", text);
       }
       
       setCards(prevCards => 
@@ -319,8 +371,8 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       return;
     }
 
-    const updatedCard = await response.json();
-    console.log("✅ Carte mise à jour avec succès:", updatedCard);
+  const updatedCard = (await tryParseJSON(response)) || editedCard;
+    console.log("Carte mise à jour avec succès:", updatedCard);
     
     setCards(prevCards => 
       prevCards.map(card => 
@@ -340,7 +392,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     setIsDialogOpen(false);
     
   } catch (error) {
-    console.error("💥 Erreur réseau:", error);
+    console.error("Erreur réseau:", error);
     
     setCards(prevCards => 
       prevCards.map(card => 
@@ -390,43 +442,41 @@ export default function BoardPage({ params }: { params: { id: string } }) {
 
   const activeId = String(active.id)
   const overId = String(over.id)
-
-  // Drag d'une carte
+  
   if (activeId.startsWith("card-") && overId.startsWith("card-")) {
     const activeCardId = Number(activeId.replace("card-", ""))
     const overCardId = Number(overId.replace("card-", ""))
 
-    const oldIndex = cards.findIndex((c) => c.id === activeCardId)
-    const newIndex = cards.findIndex((c) => c.id === overCardId)
+    const activeCard = cards.find((c) => c.id === activeCardId)
+    const overCard = cards.find((c) => c.id === overCardId)
+    
+    if (!activeCard || !overCard) return
 
-    if (oldIndex !== -1 && newIndex !== -1) {
-      const reordered = arrayMove(cards, oldIndex, newIndex)
-      
-      const updatedCards = reordered.map((card, idx) => ({
-        ...card,
-        position: idx,
-      }))
-      
-      setCards(updatedCards)
+    if (activeCard.list_id === overCard.list_id) {
+      const listCards = cards.filter((c) => c.list_id === activeCard.list_id)
+      const oldIndex = listCards.findIndex((c) => c.id === activeCardId)
+      const newIndex = listCards.findIndex((c) => c.id === overCardId)
 
-      const movedCards = updatedCards
-        .filter((card, idx) => {
-          const originalCard = cards[idx]
-          return originalCard && (card.id !== originalCard.id || card.position !== originalCard.position)
-        })
-        .map(card => ({
-          id: card.id,
-          position: card.position,
-          list_id: card.list_id,
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reordered = arrayMove(listCards, oldIndex, newIndex)
+        
+        const updatedListCards = reordered.map((card, idx) => ({
+          ...card,
+          position: idx,
         }))
 
-      if (movedCards.length > 0) {
-        updateCardPositions(movedCards)
+        const otherCards = cards.filter((c) => c.list_id !== activeCard.list_id)
+        setCards([...otherCards, ...updatedListCards])
+
+        updateCardPositions([{
+          id: activeCardId,
+          position: newIndex,
+          list_id: activeCard.list_id,
+        }])
       }
     }
   }
-
-  // Drag d'une carte vers une liste (CORRIGÉ)
+  
   if (activeId.startsWith("card-") && overId.startsWith("list-")) {
     const cardId = Number(activeId.replace("card-", ""))
     const targetListId = Number(overId.replace("list-", ""))
@@ -436,22 +486,16 @@ export default function BoardPage({ params }: { params: { id: string } }) {
 
     const movedCard = cards[cardIndex]
     if (movedCard.list_id === targetListId) return
-
-    // Récupérer la liste source de la carte
-    const sourceListId = movedCard.list_id
-
-    // Compter les cartes dans la liste cible
+    
     const cardsInTargetList = cards.filter((c) => c.list_id === targetListId)
     const newPosition = cardsInTargetList.length
-
-    // Mettre à jour la carte localement
+    
     const updatedCards = cards.map((c) =>
       c.id === cardId ? { ...c, list_id: targetListId, position: newPosition } : c
     )
 
     setCards(updatedCards)
-
-    // Mettre à jour en backend avec la NOUVELLE liste
+    
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
     if (token) {
       fetch(`/api/dashboard/list/${targetListId}/cards/${cardId}`, {
@@ -465,17 +509,15 @@ export default function BoardPage({ params }: { params: { id: string } }) {
           list_id: targetListId,
         }),
       })
-        .then((res) => res.json())
+        .then((res) => tryParseJSON(res))
         .then((data) => {
-          console.log("✅ Carte déplacée vers la liste", targetListId, ":", data)
+          console.log("Carte déplacée vers la liste", targetListId, ":", data)
         })
         .catch((error) => {
-          console.error("❌ Erreur lors du déplacement de la carte:", error)
+          console.error("Erreur lors du déplacement de la carte:", error)
         })
     }
   }
-
-  // Drag d'une liste
   if (activeId.startsWith("list-") && overId.startsWith("list-")) {
     const activeListId = Number(activeId.replace("list-", ""))
     const overListId = Number(overId.replace("list-", ""))
@@ -525,11 +567,11 @@ export default function BoardPage({ params }: { params: { id: string } }) {
         }),
       })
     )
-
+    console.log("Mise à jour des positions des listes:", movedLists)
     await Promise.all(updatePromises)
-    console.log("✅ Positions des listes mises à jour avec succès")
+    console.log("Positions des listes mises à jour avec succès")
   } catch (error) {
-    console.error("❌ Erreur lors de la mise à jour des positions des listes:", error)
+    console.error("Erreur lors de la mise à jour des positions des listes:", error)
   }
 }
 
@@ -554,7 +596,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ title: newListTitle }),
     })
-      .then((res) => res.json())
+      .then((res) => tryParseJSON(res))
       .then((data) => {
         if (data?.id) {
           setLists((s) => [...s, { id: Number(data.id), board_id: Number(id), title: data.title, position: data.position ?? s.length }])
@@ -606,7 +648,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ title: newCardTitle }),
     })
-      .then((res) => res.json())
+      .then((res) => tryParseJSON(res))
       .then((data) => {
         if (data?.id) {
           const card = {
@@ -661,11 +703,12 @@ export default function BoardPage({ params }: { params: { id: string } }) {
         }),
       })
     )
+    console.log("Mise à jour des positions des cartes:", movedCards)
 
     await Promise.all(updatePromises)
-    console.log("✅ Positions mises à jour avec succès")
+    console.log("Positions mises à jour avec succès")
   } catch (error) {
-    console.error("❌ Erreur lors de la mise à jour des positions:", error)
+    console.error("Erreur lors de la mise à jour des positions:", error)
   }
 }
 
@@ -675,22 +718,21 @@ export default function BoardPage({ params }: { params: { id: string } }) {
       setLoading(true)
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
       try {
-        const res = await fetch(`/api/dashboard/board/${id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
+          const res = await fetch(`/api/dashboard/board/${id}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          })
         if (!res.ok) {
-          // keep defaults and stop
           setLoading(false)
           return
         }
-        const data = await res.json()
+        const data = await tryParseJSON(res)
         if (!mounted) return
-        // API returns boardsData and lists
         const bd = data.boardsData && data.boardsData[String(id)]
         if (bd) {
-          setBoard({ id: Number(id), title: bd.name ?? bd.title ?? `Board ${id}`, color: bd.color })
+          const computedWorkspaceId = bd.workspaceId ?? bd.workspace_id
+          setBoard({ id: Number(id), title: bd.name ?? bd.title ?? `Board ${id}`, color: bd.color, workspace_id: computedWorkspaceId })
         } else if (data.board) {
-          setBoard({ id: Number(id), title: data.board.title, color: data.board.color })
+          setBoard({ id: Number(id), title: data.board.title, color: data.board.color, workspace_id: data.board.workspace_id })
         }
 
         const apiLists = Array.isArray(data.lists) ? data.lists : data.lists ?? []
@@ -701,8 +743,14 @@ export default function BoardPage({ params }: { params: { id: string } }) {
           position: l.position ?? idx,
         }))
         setLists(mappedLists)
-
-        // flatten cards
+        const apiLabels = Array.isArray(data.labels) ? data.labels : []
+        const mappedLabels: LabelType[] = apiLabels.map((label: any) => ({
+          id: Number(label.id),
+          board_id: Number(label.board_id),
+          name: label.name,
+          color: label.color,
+        }))
+        setLabels(mappedLabels)
         const mappedCards: CardType[] = []
         apiLists.forEach((l: any) => {
           ;(l.cards || []).forEach((c: any, idx: number) => {
@@ -747,9 +795,12 @@ export default function BoardPage({ params }: { params: { id: string } }) {
           </Link>
           <h1 className="text-2xl font-bold text-white">{board.title}</h1>
         </div>
-        <Link href={`/dashboard/board/${id}/table`}>
-          <Button variant="secondary">Vue Tableur</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/dashboard/board/${id}/table`}>
+            <Button variant="secondary">Vue Tableur</Button>
+          </Link>
+          {board?.workspace_id && <WorkspaceMembersButton workspaceId={board.workspace_id} />}
+        </div>
       </div>
     </div>
       <div className="flex-1 overflow-x-auto bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
@@ -963,27 +1014,32 @@ export default function BoardPage({ params }: { params: { id: string } }) {
 
               <div className="space-y-2">
                 <UILabel htmlFor="label">Label</UILabel>
-                <Select
-                  value={editedCard.label_id?.toString() || "0"}
-                  onValueChange={(value) =>
-                    setEditedCard({ ...editedCard, label_id: value === "0" ? null : Number.parseInt(value) })
-                  }
-                >
-                  <SelectTrigger id="label">
-                    <SelectValue placeholder="Sélectionner un label" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">Aucun</SelectItem>
-                    {labels.map((label) => (
-                      <SelectItem key={label.id} value={label.id.toString()}>
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded" style={{ backgroundColor: label.color }} />
-                          {label.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between max-w-60 mr-4">
+                  <Select
+                    value={editedCard.label_id?.toString() || "0"}
+                    onValueChange={(value) =>
+                      setEditedCard({ ...editedCard, label_id: value === "0" ? null : Number.parseInt(value) })
+                    }
+                  >
+                    <SelectTrigger id="label">
+                      <SelectValue placeholder="Sélectionner un label" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Aucun</SelectItem>
+                      {labels.map((label) => (
+                        <SelectItem key={label.id} value={label.id.toString()}>
+                          <div className="flex items-center gap-2">
+                            <div className="h-3 w-3 rounded" style={{ backgroundColor: label.color }} />
+                            {label.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" className="ml-4" onClick={() => setIsLabelDialogOpen(true)}>
+                    Ajouter un label
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1023,6 +1079,49 @@ export default function BoardPage({ params }: { params: { id: string } }) {
             </Button>
             <Button onClick={handleSaveCard}>Enregistrer</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isLabelDialogOpen} onOpenChange={setIsLabelDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Ajouter un label</DialogTitle>
+            <DialogDescription>Définissez un nom et une couleur pour ce nouveau label.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateLabel}>
+            <div className="space-y-2">
+              <UILabel htmlFor="labelName">Nom</UILabel>
+              <Input
+                id="labelName"
+                value={newLabelName}
+                onChange={(e) => setNewLabelName(e.target.value)}
+                placeholder="Bug, Feature..."
+              />
+            </div>
+            <div className="space-y-2">
+              <UILabel htmlFor="labelColor">Couleur</UILabel>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="labelColor"
+                  type="color"
+                  className="h-10 w-16 p-1"
+                  value={newLabelColor}
+                  onChange={(e) => setNewLabelColor(e.target.value)}
+                />
+                <Input
+                  value={newLabelColor}
+                  onChange={(e) => setNewLabelColor(e.target.value)}
+                  placeholder="#3b82f6"
+                />
+              </div>
+            </div>
+            {labelMessage && <p className="text-sm text-muted-foreground">{labelMessage}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsLabelDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={creatingLabel || !newLabelName.trim()}>{creatingLabel ? "Création…" : "Créer"}</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
