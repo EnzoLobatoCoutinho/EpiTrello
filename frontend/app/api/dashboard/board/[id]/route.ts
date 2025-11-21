@@ -15,12 +15,14 @@ function getUserIdFromReq(req: Request) {
     }
 }
 
-export async function GET(req: Request, context?: { params?: { id?: string } }) {
+export async function GET(req: Request, context?: { params?: Promise<{ id?: string }> }) {
     const userId = getUserIdFromReq(req)
     if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    const paramId = context?.params?.id ?? (() => {
+    
+    const params = await context?.params
+    const paramId = params?.id ?? (() => {
         try {
             const url = new URL(req.url)
             const parts = url.pathname.split("/").filter(Boolean)
@@ -35,9 +37,18 @@ export async function GET(req: Request, context?: { params?: { id?: string } }) 
         return NextResponse.json({ error: "Invalid board id" }, { status: 400 })
     }
     const board = await prisma.board.findFirst({
-        where: { id: boardId, workspace: { owner_id: Number(userId) } },
+        where: {
+            id: boardId,
+            workspace: {
+                OR: [
+                    { owner_id: Number(userId) },
+                    { members: { some: { user_id: Number(userId) } } },
+                ],
+            },
+        },
         include: {
             lists: { include: { cards: true }, orderBy: { position: "asc" } },
+            labels: true,
         },
     })
     if (!board) {
@@ -53,8 +64,22 @@ export async function GET(req: Request, context?: { params?: { id?: string } }) 
     const colorClasses = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-yellow-500", "bg-red-500"]
     const color = colorClasses[boardId % colorClasses.length]
     const boardsData = {
-        [String(board.id)]: { name: board.title, color, tasks: totalCards },
+        [String(board.id)]: { name: board.title, color, tasks: totalCards, workspaceId: board.workspace_id },
     }
 
-    return NextResponse.json({ boardsData, lists })
+    const boardPayload = {
+        id: board.id,
+        title: board.title,
+        color,
+        workspace_id: board.workspace_id,
+    }
+
+    const labels = (board.labels || []).map((label) => ({
+        id: label.id,
+        board_id: label.board_id,
+        name: label.name,
+        color: label.color,
+    }))
+
+    return NextResponse.json({ board: boardPayload, boardsData, lists, labels })
 }
