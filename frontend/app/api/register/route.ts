@@ -37,6 +37,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Erreur lors de la création du workspace" }, { status: 500 })
     }
 
+    try {
+      await prisma.workspaceMember.create({
+        data: {
+          user_id: user.id,
+          workspace_id: workspace.id,
+          role: 'OWNER',
+        },
+      })
+    } catch (memberError) {
+      console.warn("Workspace created without owner membership", memberError)
+    }
+
     return NextResponse.json(
       { message: `Bienvenue ${user.username}!`, user, workspace },
       { status: 201 }
