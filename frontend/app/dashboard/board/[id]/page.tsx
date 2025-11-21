@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft, Plus, MoreHorizontal, GripVertical, Tag, Calendar } from "lucide-react"
+import { ArrowLeft, Plus, MoreHorizontal, GripVertical, Tag, Calendar, Clock } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, use } from "react"
 import {
@@ -90,6 +90,12 @@ function SortableCard({ card, label, onClick }: { card: CardType; label: LabelTy
           >
             <Tag className="h-3 w-3" />
             {label.name}
+          </Badge>
+        )}
+        {card.start_date && (
+          <Badge variant="outline" className="flex items-center gap-1 text-xs">
+            <Clock className="h-3 w-3" />
+            {new Date(card.start_date).toLocaleDateString("fr-FR")}
           </Badge>
         )}
         {card.due_date && (
@@ -289,6 +295,28 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
         const newLabelId = createdLabel.id
         setEditedCard({ ...editedCard, label_id: newLabelId })
         setCards((prev) => prev.map((c) => (c.id === editedCard.id ? { ...c, label_id: newLabelId } : c)))
+        // Persist the label assignment to the server so it remains after reload
+        try {
+          const token2 = typeof window !== "undefined" ? localStorage.getItem("token") : null
+          if (token2) {
+            const res2 = await fetch(`/api/dashboard/list/${editedCard.list_id}/cards/${editedCard.id}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token2}`,
+              },
+              body: JSON.stringify({ label_id: newLabelId }),
+            })
+            const data2 = await tryParseJSON(res2)
+            if (res2.ok && data2) {
+              const updatedId = Number(data2.id ?? editedCard.id)
+              const updatedLabelId = data2.label_id == null ? null : Number(data2.label_id)
+              setCards((prev) => prev.map((c) => (c.id === updatedId ? { ...c, label_id: updatedLabelId } : c)))
+            }
+          }
+        } catch (err) {
+          console.error("Erreur lors de la sauvegarde du label sur la carte:", err)
+        }
       }
     } catch (err: any) {
       setLabelMessage(err?.message || "Erreur réseau")
@@ -373,22 +401,31 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
 
   const updatedCard = (await tryParseJSON(response)) || editedCard;
     console.log("Carte mise à jour avec succès:", updatedCard);
-    
-    setCards(prevCards => 
-      prevCards.map(card => 
-        card.id === updatedCard.id 
+
+    // Normaliser les ids reçus de l'API (peuvent être des strings) en nombres
+    const updatedId = Number(updatedCard?.id ?? editedCard.id);
+    const updatedLabelId =
+      updatedCard?.label_id === undefined || updatedCard?.label_id === null
+        ? null
+        : Number(updatedCard.label_id);
+
+    setCards((prevCards) =>
+      prevCards.map((card) =>
+        card.id === updatedId
           ? {
               ...card,
-              title: updatedCard.title,
-              description: updatedCard.description || "",
-              label_id: updatedCard.label_id,
-              start_date: updatedCard.start_date ? new Date(updatedCard.start_date).toISOString() : card.start_date,
-              due_date: updatedCard.due_date ? new Date(updatedCard.due_date).toISOString() : card.due_date,
+              title: updatedCard?.title ?? card.title,
+              description: updatedCard?.description ?? "",
+              label_id: updatedLabelId,
+              start_date: updatedCard?.start_date
+                ? new Date(updatedCard.start_date).toISOString()
+                : card.start_date,
+              due_date: updatedCard?.due_date ? new Date(updatedCard.due_date).toISOString() : card.due_date,
             }
-          : card
-      )
+          : card,
+      ),
     );
-    
+
     setIsDialogOpen(false);
     
   } catch (error) {
@@ -968,6 +1005,12 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
                                 {cardLabel.name}
                               </Badge>
                             )}
+                            {card.start_date && (
+                              <Badge variant="outline" className="mb-2 flex items-center gap-1 text-xs">
+                                <Clock className="h-3 w-3" />
+                                {new Date(card.start_date).toLocaleDateString("fr-FR")}
+                              </Badge>
+                            )}
                             <p className="text-sm text-muted-foreground">{card.description}</p>
                           </Card>
                         )
@@ -976,9 +1019,17 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
                   </div>
                 </Card>
               </div>
-            ) : activeCard ? (
+              ) : activeCard ? (
               <Card className="w-72 cursor-grabbing p-3 shadow-lg">
                 <h3 className="mb-1 font-medium text-foreground">{activeCard.title}</h3>
+                {activeCard.start_date && (
+                  <div className="mb-2">
+                    <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                      <Clock className="h-3 w-3" />
+                      {new Date(activeCard.start_date).toLocaleDateString("fr-FR")}
+                    </Badge>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground">{activeCard.description}</p>
               </Card>
             ) : null}
