@@ -21,7 +21,17 @@ export async function POST(req: Request, context: { params: { id: string } }) {
 
   const boardId = Number(context.params.id)
   if (Number.isNaN(boardId)) return NextResponse.json({ error: "Invalid board id" }, { status: 400 })
-  const board = await prisma.board.findFirst({ where: { id: boardId, workspace: { owner_id: Number(userId) } } })
+  const board = await prisma.board.findFirst({
+    where: {
+      id: boardId,
+      workspace: {
+        OR: [
+          { owner_id: Number(userId) },
+          { members: { some: { user_id: Number(userId) } } },
+        ],
+      },
+    },
+  })
   if (!board) return NextResponse.json({ error: "Board not found or access denied" }, { status: 404 })
 
   const body = await req.json().catch(() => ({}))
