@@ -16,7 +16,14 @@ model User {
   email      String      @unique
   username   String
   password   String
+  name       String?
+  avatar_url String?
+  is_active  Boolean     @default(true)
+  is_admin   Boolean     @default(false)
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt @default(now())
   workspaces Workspace[]
+  memberships WorkspaceMember[]
 }
 
 model Workspace {
@@ -25,6 +32,9 @@ model Workspace {
   description String
   status      String
   owner       User    @relation(fields: [owner_id], references: [id])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt @default(now())
+  members     WorkspaceMember[]
   boards      Board[]
 }
 
@@ -66,4 +76,21 @@ model Card {
   position    Int?
   list        List      @relation(fields: [list_id], references: [id])
   label       Label?    @relation(fields: [label_id], references: [id])
+}
+
+model WorkspaceMember {
+  id           Int        @id @default(autoincrement())
+  user_id      Int
+  workspace_id Int
+  role         MemberRole @default(MEMBER)
+  created_at   DateTime   @default(now())
+  user         User       @relation(fields: [user_id], references: [id])
+  workspace    Workspace  @relation(fields: [workspace_id], references: [id])
+  @@unique([user_id, workspace_id])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
 }
