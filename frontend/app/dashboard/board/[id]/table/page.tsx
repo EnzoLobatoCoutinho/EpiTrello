@@ -450,13 +450,23 @@ export default function TablePage({ params }: { params: { id: string } }) {
         }))
         setLists(mappedLists)
 
+        // Map labels returned by the API so table can look them up
+        const apiLabels = Array.isArray(data.labels) ? data.labels : []
+        const mappedLabels: LabelType[] = apiLabels.map((label: any) => ({
+          id: Number(label.id),
+          board_id: Number(label.board_id),
+          name: label.name,
+          color: label.color,
+        }))
+        setLabels(mappedLabels)
+
         const mappedCards: CardType[] = []
         apiLists.forEach((l: any) => {
           ;(l.cards || []).forEach((c: any, idx: number) => {
             mappedCards.push({
               id: Number(c.id),
               list_id: Number(l.id),
-              label_id: c.label_id ? Number(c.label_id) : null,
+              label_id: c.label ? Number(c.label.id) : c.label_id ? Number(c.label_id) : null,
               title: c.title,
               description: c.description || "",
               start_date: c.start_date ? new Date(c.start_date).toISOString() : "",
