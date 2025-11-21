@@ -22,8 +22,19 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     try {
+        const memberships = await prisma.workspaceMember.findMany({
+            where: { user_id: Number(userId) },
+            select: { workspace_id: true },
+        })
+        const memberWorkspaceIds = memberships.map((m) => m.workspace_id)
+
         const boards = await prisma.board.findMany({
-            where: { workspace: { owner_id: Number(userId) } },
+            where: {
+                OR: [
+                    { workspace: { owner_id: Number(userId) } },
+                    memberWorkspaceIds.length ? { workspace_id: { in: memberWorkspaceIds } } : undefined,
+                ].filter(Boolean) as any,
+            },
             include: {
                 workspace: true,
                 lists: { include: { _count: { select: { cards: true } } } },
