@@ -1,37 +1,48 @@
-import { NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
-import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken"
+/*
+ ** EPITECH PROJECT, 2025
+ ** EpiTrello
+ ** File description:
+ ** route
+ */
+
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 function getUserIdFromReq(req: Request) {
-  const auth = req.headers.get("authorization") || ""
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null
-  if (!token) return null
+  const auth = req.headers.get("authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!token) return null;
   try {
-    const secret = process.env.JWT_SECRET || "dev_secret"
-    const payload: any = jwt.verify(token, secret)
-    return payload?.id ?? null
+    const secret = process.env.JWT_SECRET || "dev_secret";
+    const payload: any = jwt.verify(token, secret);
+    return payload?.id ?? null;
   } catch {
-    return null
+    return null;
   }
 }
 
 export async function GET(req: Request) {
-  const id = getUserIdFromReq(req)
-  if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const id = getUserIdFromReq(req);
+  if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await prisma.user.findUnique({
     where: { id: Number(id) },
     select: { id: true, email: true, username: true },
-  })
-  if (!user) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 })
-  return NextResponse.json({ user })
+  });
+  if (!user)
+    return NextResponse.json(
+      { error: "Utilisateur introuvable" },
+      { status: 404 }
+    );
+  return NextResponse.json({ user });
 }
 
 export async function PUT(req: Request) {
-  const id = getUserIdFromReq(req)
-  if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const body = await req.json()
-  const { name, currentPassword, newPassword } = body
+  const id = getUserIdFromReq(req);
+  if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await req.json();
+  const { name, currentPassword, newPassword } = body;
 
   try {
     if (name) {
@@ -39,39 +50,53 @@ export async function PUT(req: Request) {
         where: { id: Number(id) },
         data: { username: String(name) },
         select: { id: true, username: true, email: true },
-      })
-      return NextResponse.json({ user })
+      });
+      return NextResponse.json({ user });
     }
 
     if (newPassword) {
       const user = await prisma.user.findUnique({
         where: { id: Number(id) },
         select: { password: true },
-      })
-      if (!user) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 })
-      const ok = await bcrypt.compare(currentPassword || "", user.password)
-      if (!ok) return NextResponse.json({ error: "Mot de passe actuel incorrect" }, { status: 401 })
-      const saltRounds = Number(process.env.SALT_ROUNDS) || 10
-      const hashed = await bcrypt.hash(newPassword, saltRounds)
-      await prisma.user.update({ where: { id: Number(id) }, data: { password: hashed } })
-      return NextResponse.json({ ok: true })
+      });
+      if (!user)
+        return NextResponse.json(
+          { error: "Utilisateur introuvable" },
+          { status: 404 }
+        );
+      const ok = await bcrypt.compare(currentPassword || "", user.password);
+      if (!ok)
+        return NextResponse.json(
+          { error: "Mot de passe actuel incorrect" },
+          { status: 401 }
+        );
+      const saltRounds = Number(process.env.SALT_ROUNDS) || 10;
+      const hashed = await bcrypt.hash(newPassword, saltRounds);
+      await prisma.user.update({
+        where: { id: Number(id) },
+        data: { password: hashed },
+      });
+      return NextResponse.json({ ok: true });
     }
 
-    return NextResponse.json({ error: "Rien à mettre à jour" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Rien à mettre à jour" },
+      { status: 400 }
+    );
   } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
+    console.error(err);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
 
 export async function DELETE(req: Request) {
-  const id = getUserIdFromReq(req)
-  if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const id = getUserIdFromReq(req);
+  if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    await prisma.user.delete({ where: { id: Number(id) } })
-    return NextResponse.json({ ok: true })
+    await prisma.user.delete({ where: { id: Number(id) } });
+    return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
+    console.error(err);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
