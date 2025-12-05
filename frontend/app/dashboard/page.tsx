@@ -1,150 +1,89 @@
-"use client"
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
+/*
+ ** EPITECH PROJECT, 2025
+ ** EpiTrello
+ ** File description:
+ ** page
+ */
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
+import prisma from "@/lib/prisma";
+import { Card } from "@/components/ui/card";
+import { CreateBoardDialog } from "@/components/dashboard/create-board-dialog";
 
-export default function DashboardPage() {
-  const [boards, setBoards] = useState([
-    { id: 1, name: "Project Alpha", color: "bg-blue-500", tasks: 12 },
-    { id: 2, name: "Marketing Campaign", color: "bg-green-500", tasks: 8 },
-    { id: 3, name: "Design System", color: "bg-purple-500", tasks: 15 },
-  ])
-  const router = useRouter()
-  const [checking, setChecking] = useState(true)
+interface Board {
+  id: number;
+  title: string;
+  _count: {
+    lists: number;
+  };
+}
 
-  async function handleCreateBoard() {
-    console.log("Creating new board...")
-    const title = window.prompt("Titre du nouveau board :")
-    if (!title || !title.trim()) return
-    const token = localStorage.getItem("token")
-    if (!token) {
-      router.replace("/")
-      return
-    }
-    try {
-      const res = await fetch("/api/dashboard", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ title: title.trim() }),
-      })
-      const data = await res.json()
-      if (res.ok && data.board) {
-        const created = {
-          id: data.board.id,
-          name: data.board.title,
-          color: "bg-blue-500",
-          tasks: 0,
-        }
-        setBoards(prev => [created, ...prev])
-      } else {
-        console.error("Create board failed:", data)
-        alert(data?.error || "Erreur lors de la création du board")
-      }
-    } catch (err) {
-      console.error(err)
-      alert("Erreur réseau")
-    }
+async function getUser() {
+  const token = (await cookies()).get("token")?.value;
+  if (!token) return null;
+  try {
+    return jwt.decode(token) as { userId: number; email: string };
+  } catch {
+    return null;
   }
+}
 
-  useEffect(() => {
-    async function verify() {
-      const token = localStorage.getItem("token")
-      if (!token) {
-        router.replace("/")
-        return
-      }
+export default async function DashboardPage() {
+  const user = await getUser();
+  if (!user) redirect("/login");
 
-      try {
-        const res = await fetch("/api/user", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!res.ok) {
-          router.replace("/")
-          return
-        }
-      } catch (err) {
-        router.replace("/")
-        return
-      } finally {
-        setChecking(false)
-      }
-    }
-    verify()
-
-    async function fetchBoards() {
-      const token = localStorage.getItem("token")
-      if (!token) return
-      try {
-        const res = await fetch("/api/dashboard", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!res.ok) {
-          console.error("Fetch failed:", res.status)
-          return
-        }
-        const data = await res.json()
-        console.log("Fetched boards:", data)
-        if (Array.isArray(data?.boards)) {
-          const fetchedBoards = data.boards.map((b: any) => ({
-            id: b.id,
-            name: b.title ?? "Untitled",
-            color: "bg-blue-500",
-            tasks: b.cardsCount ?? b.listsCount ?? 0,
-          }))
-          setBoards(fetchedBoards)
-        }
-      } catch (err) {
-        console.error(err)
-      }
-    }
-    fetchBoards()
-  }, [router])
-
-  if (checking) return null
+  const boards = await prisma.board.findMany({
+    where: {
+      workspace: { owner_id: user.userId },
+    },
+    orderBy: { id: "desc" },
+    include: {
+      _count: { select: { lists: true } },
+    },
+  });
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="p-4 md:p-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back to Trello</p>
+          <h1 className="text-2xl font-bold text-foreground md:text-3xl">
+            Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground md:text-base">
+            Bienvenue, {user.email}
+          </p>
         </div>
-        <Button onClick={handleCreateBoard} className="gap-2 bg-primary text-primary-foreground">
-           <Plus className="h-4 w-4" />
-           Créer un board
-         </Button>
+        <CreateBoardDialog triggerStyle="button" />
       </div>
 
       <div>
-        <h2 className="mb-4 text-xl font-semibold text-foreground">Mes Boards</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {boards.map((board) => (
-            <Card
-              key={board.id}
-              onClick={() => router.push(`dashboard/board/${board.id}`)}
-              role="button"
-              className={`group cursor-pointer overflow-hidden transition-all hover:shadow-lg ${board.color}`}
-            >
-              <div className={`h-24 ${board.color} transition-opacity group-hover:opacity-90`} />
-              <div className="p-4 bg-white">
-                <h3 className="mb-2 font-semibold text-foreground">{board.name}</h3>
-              </div>
-            </Card>
+        <h2 className="mb-4 text-lg font-semibold text-foreground md:text-xl">
+          Mes Boards
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {boards.map((board: Board) => (
+            <Link key={board.id} href={`/dashboard/board/${board.id}`}>
+              <Card className="group h-full cursor-pointer overflow-hidden bg-white transition-all hover:shadow-lg">
+                <div className="h-24 bg-blue-500 transition-opacity group-hover:opacity-90" />
+
+                <div className="p-4">
+                  <h3 className="mb-1 font-semibold text-foreground">
+                    {board.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {board._count.lists} liste
+                    {board._count.lists > 1 ? "s" : ""}
+                  </p>
+                </div>
+              </Card>
+            </Link>
           ))}
 
-          <Card onClick={handleCreateBoard} className="group flex cursor-pointer items-center justify-center border-2 border-dashed transition-all hover:border-primary hover:bg-accent">
-            <div className="p-8 text-center">
-              <Plus className="mx-auto mb-2 h-8 w-8 text-muted-foreground transition-colors group-hover:text-primary" />
-              <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Nouveau board</p>
-            </div>
-          </Card>
+          <CreateBoardDialog triggerStyle="card" />
         </div>
       </div>
     </div>
-  )
+  );
 }
