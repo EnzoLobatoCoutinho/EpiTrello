@@ -59,6 +59,7 @@ export async function GET(
             cards: { orderBy: { position: "asc" } },
           },
         },
+        labels: true,
       },
     });
 
@@ -82,6 +83,13 @@ export async function GET(
       })),
     }));
 
+    const labels = (board.labels || []).map((l) => ({
+      id: l.id,
+      board_id: l.board_id,
+      name: l.name,
+      color: l.color,
+    }));
+
     const totalCards = lists.reduce((acc, l) => acc + l.cards.length, 0);
     const colorClasses = [
       "bg-blue-500",
@@ -95,6 +103,7 @@ export async function GET(
     return NextResponse.json({
       board: { id: board.id, title: board.title, color },
       lists: lists,
+      labels,
       boardsData: {
         [String(board.id)]: { name: board.title, color, tasks: totalCards },
       },

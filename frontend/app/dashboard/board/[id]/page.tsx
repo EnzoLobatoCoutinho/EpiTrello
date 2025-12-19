@@ -28,24 +28,15 @@ import {
 } from "@dnd-kit/sortable";
 import { io } from "socket.io-client";
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { BoardList } from "@/components/board/board-list";
 import { EditCardDialog } from "@/components/board/edit-card-dialog";
+import { CreateLabelDialog } from "@/components/board/create-label-dialog";
 import type { CardType, ListType, LabelType } from "@/types/board";
 
-const boardLabels: Record<string, LabelType[]> = {
-  "1": [
-    { id: 1, board_id: 1, name: "Design", color: "#8B5CF6" },
-    { id: 2, board_id: 1, name: "Dev", color: "#3B82F6" },
-    { id: 3, board_id: 1, name: "Contenu", color: "#10B981" },
-    { id: 4, board_id: 1, name: "Bug", color: "#EF4444" },
-    { id: 5, board_id: 1, name: "Feature", color: "#F59E0B" },
-    { id: 6, board_id: 1, name: "Urgent", color: "#DC2626" },
-  ],
-};
 
 export default function BoardPage({
   params,
@@ -62,12 +53,13 @@ export default function BoardPage({
   } | null>(null);
   const [lists, setLists] = useState<ListType[]>([]);
   const [cards, setCards] = useState<CardType[]>([]);
-  const [labels] = useState<LabelType[]>(boardLabels[id] || []);
+  const [labels, setLabels] = useState<LabelType[]>([]);
 
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
   const [activeList, setActiveList] = useState<ListType | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editedCard, setEditedCard] = useState<CardType | null>(null);
+  const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
@@ -93,6 +85,8 @@ export default function BoardPage({
         setLists(
           data.lists.map((l: any) => ({ ...l, position: l.position ?? 0 }))
         );
+
+        if (data.labels) setLabels(data.labels);
 
         const allCards: CardType[] = [];
         data.lists.forEach((l: any) => {
@@ -137,6 +131,15 @@ export default function BoardPage({
         );
         return [...newLists].sort((a, b) => a.position - b.position);
       });
+    });
+
+    socket.on("card-deleted", (data: { id: number }) => {
+      setCards((prev) => prev.filter((c) => c.id !== data.id));
+    });
+
+    socket.on("list-deleted", (data: { id: number }) => {
+      setLists((prev) => prev.filter((l) => l.id !== data.id));
+      setCards((prev) => prev.filter((c) => c.list_id !== data.id));
     });
 
     return () => {
@@ -372,6 +375,66 @@ export default function BoardPage({
     });
   };
 
+  async function handleDeleteCard(cardId: number) {
+    const card = cards.find((c) => c.id === cardId);
+    if (!card) return;
+    if (!confirm("Supprimer cette carte ?")) return;
+    const token = localStorage.getItem("token");
+    try {
+      await fetch(
+        `/api/dashboard/board/${id}/lists/${card.list_id}/cards/${cardId}`,
+        {
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        }
+      );
+      setCards((prev) => prev.filter((c) => c.id !== cardId));
+      setIsDialogOpen(false);
+    } catch (err) {
+      console.error("Error deleting card", err);
+    }
+  }
+
+  async function handleListAction(action: string, list: ListType) {
+    const token = localStorage.getItem("token");
+    if (action === "menu") {
+      const choice = prompt("Entrez 'rename' pour renommer ou 'delete' pour supprimer la liste");
+      if (!choice) return;
+      if (choice === "delete") {
+        if (!confirm(`Supprimer la liste '${list.title}' ?`)) return;
+        try {
+          await fetch(`/api/dashboard/board/${id}/lists/${list.id}`, {
+            method: "DELETE",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          });
+          setLists((prev) => prev.filter((l) => l.id !== list.id));
+          setCards((prev) => prev.filter((c) => c.list_id !== list.id));
+        } catch (err) {
+          console.error("Error deleting list", err);
+        }
+      } else if (choice === "rename") {
+        const newTitle = prompt("Nouveau titre de la liste", list.title);
+        if (!newTitle) return;
+        try {
+          const res = await fetch(`/api/dashboard/board/${id}/lists/${list.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ title: newTitle }),
+          });
+          if (res.ok) {
+            const updated = await res.json();
+            setLists((prev) => prev.map((l) => (l.id === updated.id ? { ...l, title: updated.title } : l)));
+          }
+        } catch (err) {
+          console.error("Error renaming list", err);
+        }
+      }
+    }
+  }
+
   if (!board)
     return (
       <div className="flex h-screen items-center justify-center">
@@ -396,9 +459,19 @@ export default function BoardPage({
             </Link>
             <h1 className="text-2xl font-bold text-white">{board.title}</h1>
           </div>
-          <Link href={`/dashboard/board/${id}/table`}>
-            <Button variant="secondary">{t("board.view.table")}</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20"
+              onClick={() => setIsLabelDialogOpen(true)}
+            >
+              <Tag className="h-5 w-5" />
+            </Button>
+            <Link href={`/dashboard/board/${id}/table`}>
+              <Button variant="secondary">{t("board.view.table")}</Button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -429,6 +502,7 @@ export default function BoardPage({
                     setEditedCard(c);
                     setIsDialogOpen(true);
                   }}
+                  onListAction={handleListAction}
                   isAddingCard={addingCardListId === list.id}
                   newCardTitle={newCardTitle}
                   setNewCardTitle={setNewCardTitle}
@@ -490,7 +564,15 @@ export default function BoardPage({
         card={editedCard}
         setCard={setEditedCard as any}
         onSave={handleSaveCard}
+        onDelete={handleDeleteCard}
         labels={labels}
+      />
+
+      <CreateLabelDialog
+        isOpen={isLabelDialogOpen}
+        onClose={() => setIsLabelDialogOpen(false)}
+        boardId={id}
+        onCreated={(label) => setLabels((prev) => [...prev, label])}
       />
     </div>
   );

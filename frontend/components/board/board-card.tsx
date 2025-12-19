@@ -46,7 +46,7 @@ export function BoardCard({ card, label, onClick }: BoardCardProps) {
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="cursor-grab p-3 transition-shadow hover:shadow-md active:cursor-grabbing mb-2"
+      className="cursor-grab p-3 transition-shadow hover:shadow-md active:cursor-grabbing"
     >
       <h3 className="mb-2 font-medium text-foreground">{card.title}</h3>
 
@@ -61,19 +61,33 @@ export function BoardCard({ card, label, onClick }: BoardCardProps) {
             {label.name}
           </Badge>
         )}
-        {card.due_date && (
+
+        {card.start_date && card.due_date ? (
           <Badge variant="outline" className="flex items-center gap-1 text-xs">
             <Calendar className="h-3 w-3" />
-            {new Date(card.due_date).toLocaleDateString("fr-FR")}
+            {`${new Date(card.start_date).toLocaleDateString("fr-FR")} → ${new Date(
+              card.due_date
+            ).toLocaleDateString("fr-FR")}`}
           </Badge>
+        ) : (
+          <>
+            {card.start_date && (
+              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                <Calendar className="h-3 w-3" />
+                {new Date(card.start_date).toLocaleDateString("fr-FR")}
+              </Badge>
+            )}
+            {card.due_date && (
+              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                <Calendar className="h-3 w-3" />
+                {new Date(card.due_date).toLocaleDateString("fr-FR")}
+              </Badge>
+            )}
+          </>
         )}
       </div>
 
-      {card.description && (
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {card.description}
-        </p>
-      )}
+      {card.description && <p className="text-sm text-muted-foreground">{card.description}</p>}
     </Card>
   );
 }

@@ -27,6 +27,7 @@ interface BoardListProps {
   cards: CardType[];
   labels: LabelType[];
   onCardClick: (card: CardType) => void;
+  onListAction?: (action: string, list: ListType) => void;
   isAddingCard: boolean;
   newCardTitle: string;
   onAddCardClick: (listId: number) => void;
@@ -40,6 +41,7 @@ export function BoardList({
   cards,
   labels,
   onCardClick,
+  onListAction,
   isAddingCard,
   newCardTitle,
   onAddCardClick,
@@ -89,7 +91,12 @@ export function BoardList({
                 ({cards.length})
               </span>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => onListAction && onListAction("menu", list)}
+            >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </div>

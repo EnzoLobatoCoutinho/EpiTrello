@@ -66,4 +66,17 @@ model Card {
   position    Int?
   list        List      @relation(fields: [list_id], references: [id])
   label       Label?    @relation(fields: [label_id], references: [id])
+  checklist   ChecklistItem[]
+}
+
+model ChecklistItem {
+  id        Int      @id @default(autoincrement())
+  card_id   Int
+  title     String
+  checked   Boolean  @default(false)
+  position  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  card Card @relation(fields: [card_id], references: [id])
 }

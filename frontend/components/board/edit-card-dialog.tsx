@@ -33,6 +33,7 @@ interface EditCardDialogProps {
   card: CardType | null;
   setCard: (card: CardType) => void;
   onSave: () => void;
+  onDelete?: (cardId: number) => void;
   labels: LabelType[];
 }
 
@@ -42,6 +43,7 @@ export function EditCardDialog({
   card,
   setCard,
   onSave,
+  onDelete,
   labels,
 }: EditCardDialogProps) {
   if (!card) return null;
@@ -151,10 +153,30 @@ export function EditCardDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button onClick={onSave}>Enregistrer</Button>
+          <div className="flex flex-1 items-center justify-between">
+            <div>
+              {onDelete && (
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (!card) return;
+                    if (confirm("Supprimer cette carte ?")) {
+                      onDelete(card.id);
+                      onClose();
+                    }
+                  }}
+                >
+                  Supprimer
+                </Button>
+              )}
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Annuler
+              </Button>
+              <Button onClick={onSave}>Enregistrer</Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
