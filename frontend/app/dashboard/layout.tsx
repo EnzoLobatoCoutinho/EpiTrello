@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Settings, LayoutDashboard, LogOut, Menu, X } from "lucide-react";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useClientT } from "@/lib/i18n-client";
 import Link from "next/link";
 
 export default function DashboardLayout({
@@ -10,6 +12,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = useClientT("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
@@ -54,7 +57,7 @@ export default function DashboardLayout({
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <LayoutDashboard className="h-5 w-5" />
-            <span>Dashboard</span>
+            <span>{t("menu.dashboard")}</span>
           </Link>
           <Link
             href="/settings"
@@ -62,12 +65,15 @@ export default function DashboardLayout({
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <Settings className="h-5 w-5" />
-            <span>Paramètres</span>
+            <span>{t("menu.settings")}</span>
           </Link>
         </nav>
 
         <div className="flex-grow" />
         <div className="p-4">
+          <div className="mb-3 flex justify-center">
+            <LanguageSwitcher />
+          </div>
           <Button
             variant="outline"
             className="w-full justify-start gap-3 bg-transparent"
@@ -75,7 +81,7 @@ export default function DashboardLayout({
           >
             <Link href="/">
               <LogOut className="h-5 w-5" />
-              <span>Déconnexion</span>
+              <span>{t("logout")}</span>
             </Link>
           </Button>
         </div>

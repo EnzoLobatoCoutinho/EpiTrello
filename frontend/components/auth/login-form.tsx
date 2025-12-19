@@ -13,10 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginAction } from "@/actions/auth";
+import { useClientT } from "@/lib/i18n-client";
 
 export function LoginForm() {
   const router = useRouter();
   const [state, action, isPending] = useActionState(loginAction, undefined);
+  const { t } = useClientT("auth");
 
   useEffect(() => {
     if (state?.success && state?.token) {
@@ -28,18 +30,18 @@ export function LoginForm() {
   return (
     <form action={action} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("login.email.label")}</Label>
         <Input 
           id="email" 
           name="email" 
           type="email" 
-          placeholder="exemple@mail.com" 
+          placeholder={t("login.email.placeholder")}
           required 
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Mot de passe</Label>
+        <Label htmlFor="password">{t("login.password.label")}</Label>
         <Input 
           id="password" 
           name="password" 
@@ -55,7 +57,7 @@ export function LoginForm() {
       )}
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Connexion..." : "Se connecter"}
+        {isPending ? t("login.button.loading") : t("login.button")}
       </Button>
     </form>
   );

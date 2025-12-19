@@ -7,8 +7,10 @@
 "use client";
 import Link from "next/link";
 import { RegisterForm } from "@/components/auth/register-form";
+import { useClientT } from "@/lib/i18n-client";
 
 export default function RegisterPage() {
+  const { t } = useClientT("auth");
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-md">
@@ -33,15 +35,15 @@ export default function RegisterPage() {
 
         <div className="bg-white p-8 rounded-lg shadow border">
           <h1 className="mb-6 text-center text-xl font-semibold">
-            Inscription
+            {t("register.title")}
           </h1>
           <RegisterForm />
         </div>
 
         <div className="mt-6 text-center text-sm text-gray-500">
-          Déjà un compte ?{" "}
+          {t("register.link.login") === "Log in" ? "Already have an account? " : "Déjà un compte ? "}
           <Link href="/login" className="text-blue-600 hover:underline">
-            Se connecter
+            {t("register.link.login")}
           </Link>
         </div>
       </div>

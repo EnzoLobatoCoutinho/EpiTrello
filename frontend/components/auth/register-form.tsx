@@ -12,36 +12,38 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerAction } from "@/actions/auth";
+import { useClientT } from "@/lib/i18n-client";
 
 export function RegisterForm() {
   const [state, action, isPending] = useActionState(registerAction, undefined);
+  const { t } = useClientT("auth");
 
   return (
     <form action={action} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="username">Nom d'utilisateur</Label>
+        <Label htmlFor="username">{t("register.username.label")}</Label>
         <Input 
           id="username" 
           name="username" 
           type="text" 
-          placeholder="Votre pseudo" 
+          placeholder={t("register.username.placeholder")}
           required 
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("register.email.label")}</Label>
         <Input 
           id="email" 
           name="email" 
           type="email" 
-          placeholder="exemple@mail.com" 
+          placeholder={t("register.email.placeholder")}
           required 
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Mot de passe</Label>
+        <Label htmlFor="password">{t("register.password.label")}</Label>
         <Input 
           id="password" 
           name="password" 
@@ -57,7 +59,7 @@ export function RegisterForm() {
       )}
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Création..." : "S'inscrire"}
+        {isPending ? t("register.button.loading") : t("register.button")}
       </Button>
     </form>
   );

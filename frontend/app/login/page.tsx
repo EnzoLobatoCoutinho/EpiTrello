@@ -7,8 +7,13 @@
 
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
+import { cookies } from "next/headers";
+import { getServerT } from "@/lib/i18n-server";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "fr";
+  const t = await getServerT(locale, "auth");
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-md">
@@ -32,14 +37,14 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white p-8 rounded-lg shadow border">
-          <h1 className="mb-6 text-center text-xl font-semibold">Connexion</h1>
+          <h1 className="mb-6 text-center text-xl font-semibold">{t("login.title")}</h1>
           <LoginForm />
         </div>
 
         <div className="mt-6 text-center text-sm text-gray-500">
-          Pas de compte ?{" "}
+          {t("register.link.login") === "Log in" ? "No account? " : "Pas de compte ? "}
           <Link href="/register" className="text-blue-600 hover:underline">
-            S'inscrire
+            {t("login.link.register")}
           </Link>
         </div>
       </div>

@@ -19,6 +19,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { GripVertical, MoreHorizontal, Plus } from "lucide-react";
 import { BoardCard } from "./board-card";
+import { useClientT } from "@/lib/i18n-client";
 import type { ListType, CardType, LabelType } from "@/types/board";
 
 interface BoardListProps {
@@ -46,6 +47,7 @@ export function BoardList({
   onSaveNewCard,
   onCancelAddCard,
 }: BoardListProps) {
+  const { t } = useClientT("dashboard");
   const {
     attributes,
     listeners,
@@ -119,7 +121,7 @@ export function BoardList({
           {isAddingCard ? (
             <div className="mt-2 space-y-2">
               <Textarea
-                placeholder="Saisir un titre..."
+                placeholder={t("list.addCard.placeholder")}
                 value={newCardTitle}
                 onChange={(e) => setNewCardTitle(e.target.value)}
                 onKeyDown={(e) => {
@@ -136,10 +138,10 @@ export function BoardList({
               />
               <div className="flex gap-2">
                 <Button onClick={onSaveNewCard} size="sm">
-                  Ajouter
+                  {t("list.addCard.submit")}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={onCancelAddCard}>
-                  Annuler
+                  {t("list.addCard.cancel")}
                 </Button>
               </div>
             </div>
@@ -150,7 +152,7 @@ export function BoardList({
               onClick={() => onAddCardClick(list.id)}
             >
               <Plus className="h-4 w-4" />
-              Ajouter une carte
+              {t("list.addCard.trigger")}
             </Button>
           )}
         </div>

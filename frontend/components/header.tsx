@@ -6,8 +6,13 @@
  */
 
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { cookies } from "next/headers";
+import { getServerT } from "@/lib/i18n-server";
 
 export function Header() {
+  const locale = cookies().get("NEXT_LOCALE")?.value ?? "fr";
+  const t = await getServerT(locale, "header");
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="container flex h-16 items-center justify-between px-4">
@@ -28,12 +33,15 @@ export function Header() {
           <span className="text-xl font-bold text-foreground">Trello</span>
         </a>
 
-        <Button
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-          asChild
-        >
-          <a href="/login">S'identifier</a>
-        </Button>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher currentLocale={locale} />
+          <Button
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            asChild
+          >
+            <a href="/login">{t("cta.login")}</a>
+          </Button>
+        </div>
       </div>
     </header>
   );

@@ -18,6 +18,8 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     environment:
       NODE_ENV: development
       DATABASE_URL: postgres://postgres:postgres@db:5432/epitrello
@@ -25,6 +27,23 @@ services:
       - "3000:3000"
     depends_on:
       - db
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+  
+  # socket-server:
+  #   build:
+  #     context: ./server
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "4000:4000"
+  #   environment:
+  #     - REDIS_URL=redis://redis:6379
+  #     - FRONTEND_URL=http://localhost:3000
+  #   depends_on:
+  #     - redis
 
 volumes:
   postgres_data:

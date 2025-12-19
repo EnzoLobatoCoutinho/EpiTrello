@@ -9,6 +9,7 @@
 
 import { use } from "react";
 import { useState, useEffect } from "react";
+import { useClientT } from "@/lib/i18n-client";
 import {
   DndContext,
   type DragEndEvent,
@@ -31,7 +32,6 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-
 import { BoardList } from "@/components/board/board-list";
 import { EditCardDialog } from "@/components/board/edit-card-dialog";
 import type { CardType, ListType, LabelType } from "@/types/board";
@@ -53,6 +53,7 @@ export default function BoardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const { t } = useClientT("dashboard");
 
   const [board, setBoard] = useState<{
     id: number;
@@ -72,6 +73,7 @@ export default function BoardPage({
   const [newListTitle, setNewListTitle] = useState("");
   const [addingCardListId, setAddingCardListId] = useState<number | null>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
+  const [isSavingCard, setIsSavingCard] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -197,7 +199,6 @@ export default function BoardPage({
 
     console.log(`Drop: ${activeId} over ${overId}`);
 
-    // Si une card bouge
     if (activeId.startsWith("card-")) {
       const activeCardId = Number(activeId.replace("card-", ""));
 
@@ -243,7 +244,6 @@ export default function BoardPage({
       }
     }
 
-    // Si une liste bouge
     else if (activeId.startsWith("list-") && overId.startsWith("list-")) {
       const activeListId = Number(activeId.replace("list-", ""));
       const overListId = Number(overId.replace("list-", ""));
@@ -264,7 +264,6 @@ export default function BoardPage({
     }
   }
 
-  // Appels API
   const updateListPosition = async (listId: number, newPosition: number) => {
     const token = localStorage.getItem("token");
     try {
@@ -306,7 +305,8 @@ export default function BoardPage({
   };
 
   const handleSaveNewCard = async () => {
-    if (!newCardTitle.trim() || !addingCardListId) return;
+    if (!newCardTitle.trim() || !addingCardListId || isSavingCard) return;
+    setIsSavingCard(true);
     const token = localStorage.getItem("token");
     try {
       const res = await fetch(
@@ -320,12 +320,13 @@ export default function BoardPage({
           body: JSON.stringify({ title: newCardTitle }),
         }
       );
-      const newCard = await res.json();
-      setCards((prev) => [...prev, newCard]);
+      await res.json();
       setNewCardTitle("");
       setAddingCardListId(null);
     } catch {
       console.error("Error creating card");
+    } finally {
+      setIsSavingCard(false);
     }
   };
 
@@ -396,7 +397,7 @@ export default function BoardPage({
             <h1 className="text-2xl font-bold text-white">{board.title}</h1>
           </div>
           <Link href={`/dashboard/board/${id}/table`}>
-            <Button variant="secondary">Vue Tableur</Button>
+            <Button variant="secondary">{t("board.view.table")}</Button>
           </Link>
         </div>
       </div>
@@ -472,7 +473,7 @@ export default function BoardPage({
                     variant="outline"
                     onClick={() => setIsAddingList(true)}
                   >
-                    <Plus className="mr-2 h-4 w-4" /> Ajouter une liste
+                    <Plus className="mr-2 h-4 w-4" /> {t("list.addList.trigger")}
                   </Button>
                 )}
               </div>

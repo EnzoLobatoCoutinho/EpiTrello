@@ -25,6 +25,7 @@ import { io } from "socket.io-client";
 
 import { EditCardDialog } from "@/components/board/edit-card-dialog";
 import type { CardType, ListType, LabelType } from "@/types/board";
+import { useClientT } from "@/lib/i18n-client";
 
 const boardLabels: Record<string, LabelType[]> = {
   "1": [
@@ -43,6 +44,7 @@ export default function TablePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const { t } = useClientT("dashboard");
 
   const [board, setBoard] = useState<{
     id: number;
@@ -192,7 +194,7 @@ export default function TablePage({
   }
 
   async function handleDelete(cardId: number) {
-    if (!confirm("Supprimer cette carte ?")) return;
+    if (!confirm(t("table.delete.confirm"))) return;
     const card = cards.find((c) => c.id === cardId);
     if (!card) return;
 
@@ -216,10 +218,10 @@ export default function TablePage({
   if (loading)
     return (
       <div className="h-screen flex items-center justify-center">
-        Chargement...
+        {t("table.loading")}
       </div>
     );
-  if (!board) return <div>Board introuvable</div>;
+  if (!board) return <div>{t("board.notFound")}</div>;
 
   return (
     <div className="flex h-screen flex-col">
@@ -236,15 +238,15 @@ export default function TablePage({
               </Button>
             </Link>
             <h1 className="text-2xl font-bold text-white">
-              {board.title} - Vue Tableur
+              {board.title} - {t("board.view.table")}
             </h1>
           </div>
           <div className="flex gap-2">
             <Link href={`/dashboard/board/${id}`}>
-              <Button variant="secondary">Vue Kanban</Button>
+              <Button variant="secondary">{t("board.view.kanban")}</Button>
             </Link>
             <Button variant="secondary" onClick={handleAddCardClick}>
-              <Plus className="mr-2 h-4 w-4" /> Ajouter
+              <Plus className="mr-2 h-4 w-4" /> {t("table.add")}
             </Button>
           </div>
         </div>
@@ -255,13 +257,13 @@ export default function TablePage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[250px]">Titre</TableHead>
-                <TableHead className="w-[150px]">Liste</TableHead>
-                <TableHead className="w-[120px]">Label</TableHead>
-                <TableHead className="w-[300px]">Description</TableHead>
-                <TableHead className="w-[120px]">Début</TableHead>
-                <TableHead className="w-[120px]">Fin</TableHead>
-                <TableHead className="w-[100px] text-right">My Ass</TableHead>
+                <TableHead className="w-[250px]">{t("table.header.title")}</TableHead>
+                <TableHead className="w-[150px]">{t("table.header.list")}</TableHead>
+                <TableHead className="w-[120px]">{t("table.header.label")}</TableHead>
+                <TableHead className="w-[300px]">{t("table.header.description")}</TableHead>
+                <TableHead className="w-[120px]">{t("table.header.start")}</TableHead>
+                <TableHead className="w-[120px]">{t("table.header.end")}</TableHead>
+                <TableHead className="w-[100px] text-right">{t("table.header.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -271,7 +273,7 @@ export default function TablePage({
                     colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    Aucune carte.
+                    {t("table.empty")}
                   </TableCell>
                 </TableRow>
               ) : (

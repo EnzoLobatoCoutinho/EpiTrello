@@ -1,0 +1,7 @@
+{
+  "dashboard.title": "Tableau de bord",
+  "dashboard.welcome": "Bienvenue, {{email}}",
+  "dashboard.myBoards": "Mes Boards",
+  "dashboard.listsCount": "{{count}} liste",
+  "dashboard.listsCount_plural": "{{count}} listes"
+}
