@@ -1,0 +1,7 @@
+{
+  "dashboard.title": "Dashboard",
+  "dashboard.welcome": "Welcome, {{email}}",
+  "dashboard.myBoards": "My Boards",
+  "dashboard.listsCount": "{{count}} list",
+  "dashboard.listsCount_plural": "{{count}} lists"
+}

@@ -1,55 +1,106 @@
-import type React from "react"
-import { Button } from "@/components/ui/button"
-import { Settings, LayoutDashboard, LogOut } from "lucide-react"
+"use client";
+
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Settings, LayoutDashboard, LogOut, Menu, X } from "lucide-react";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useClientT } from "@/lib/i18n-client";
+import Link from "next/link";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
+  const { t } = useClientT("dashboard");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 border-r bg-card flex flex-col">
-        <div className="flex h-16 items-center gap-2 border-b px-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-primary">
-            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
-              <rect x="3" y="3" width="7" height="9" rx="1" fill="white" />
-              <rect x="14" y="3" width="7" height="5" rx="1" fill="white" />
-              <rect x="3" y="16" width="7" height="5" rx="1" fill="white" />
-              <rect x="14" y="12" width="7" height="9" rx="1" fill="white" />
-            </svg>
+    <div className="flex min-h-screen bg-background">
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-300 ease-in-out
+          md:static md:translate-x-0 
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
+        <div className="flex h-16 items-center justify-between border-b px-6">
+          <div className="flex items-center gap-2">
+              <img 
+                src="https://i.ibb.co/b5nSXxSx/Gemini-Generated-Image-immr80immr80immr-2.png" 
+                alt="Logo" 
+                className="h-9 w-9 object-contain"
+              />
+            <span className="text-xl font-bold text-foreground">Trello</span>
           </div>
-          <span className="text-xl font-bold text-foreground">Trello</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
         <nav className="space-y-1 p-4">
-          <a
+          <Link
             href="/dashboard"
+            onClick={() => setIsSidebarOpen(false)}
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <LayoutDashboard className="h-5 w-5" />
-            <span>Dashboard</span>
-          </a>
-          <a
+            <span>{t("menu.dashboard")}</span>
+          </Link>
+          <Link
             href="/settings"
+            onClick={() => setIsSidebarOpen(false)}
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <Settings className="h-5 w-5" />
-            <span>Settings</span>
-          </a>
+            <span>{t("menu.settings")}</span>
+          </Link>
         </nav>
 
         <div className="flex-grow" />
         <div className="p-4">
-          <Button variant="outline" className="w-full justify-start gap-3 bg-transparent" asChild>
-            <a href="/">
+          <div className="mb-3 flex justify-center">
+            <LanguageSwitcher />
+          </div>
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 bg-transparent"
+            asChild
+          >
+            <Link href="/">
               <LogOut className="h-5 w-5" />
-              <span>Logout</span>
-            </a>
+              <span>{t("logout")}</span>
+            </Link>
           </Button>
         </div>
       </aside>
-      <main className="flex-1 bg-background">{children}</main>
+
+      <div className="flex flex-1 flex-col min-w-0">
+        <header className="flex h-16 items-center border-b bg-card px-4 md:hidden">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <Menu className="h-6 w-6" />
+          </Button>
+          <span className="ml-4 text-lg font-bold">Trello</span>
+        </header>
+
+        <main className="flex-1 bg-background">{children}</main>
+      </div>
     </div>
-  )
+  );
 }

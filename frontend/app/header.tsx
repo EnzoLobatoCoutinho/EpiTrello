@@ -1,14 +1,31 @@
-import { Button } from "@/components/ui/button"
-import { ChevronDown } from "lucide-react"
+/*
+ ** EPITECH PROJECT, 2025
+ ** EpiTrello
+ ** File description:
+ ** header
+ */
 
-export function Header() {
+import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { cookies } from "next/headers";
+import { getServerT } from "@/lib/i18n-server";
+
+export async function Header() {
+  const locale = cookies().get("NEXT_LOCALE")?.value ?? "fr";
+  const t = await getServerT(locale, "header");
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <a href="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded bg-primary">
-              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                className="h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+              >
                 <rect x="3" y="3" width="7" height="9" rx="1" fill="white" />
                 <rect x="14" y="3" width="7" height="5" rx="1" fill="white" />
                 <rect x="3" y="16" width="7" height="5" rx="1" fill="white" />
@@ -20,28 +37,35 @@ export function Header() {
 
           <nav className="hidden items-center gap-6 md:flex">
             <button className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
-              Features
+              {t("nav.features")}
               <ChevronDown className="h-4 w-4" />
             </button>
             <button className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
-              Solutions
+              {t("nav.solutions")}
               <ChevronDown className="h-4 w-4" />
             </button>
-            <a href="#" className="text-sm font-medium text-foreground hover:text-primary">
-              Pricing
+            <a
+              href="#"
+              className="text-sm font-medium text-foreground hover:text-primary"
+            >
+              {t("nav.pricing")}
             </a>
           </nav>
         </div>
 
         <div className="flex items-center gap-3">
+          <LanguageSwitcher currentLocale={locale} />
           <Button variant="ghost" className="text-sm font-medium" asChild>
-            <a href="/login">Log in</a>
+            <a href="/login">{t("cta.login")}</a>
           </Button>
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-            <a href="/register">Get Trello for free</a>
+          <Button
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            asChild
+          >
+            <a href="/register">{t("cta.getFree")}</a>
           </Button>
         </div>
       </div>
     </header>
-  )
+  );
 }

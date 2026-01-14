@@ -1,5 +1,12 @@
-import { Card } from "@/components/ui/card"
-import { Mail } from "react-feather" // Assuming Mail is a component from react-feather
+/*
+** EPITECH PROJECT, 2025
+** EpiTrello
+** File description:
+** integration-section
+*/
+
+import { Card } from "@/components/ui/card";
+import { Mail } from "react-feather";
 
 export function IntegrationSection() {
   return (
@@ -10,8 +17,8 @@ export function IntegrationSection() {
             From message to action
           </h2>
           <p className="mx-auto max-w-2xl text-pretty text-lg text-primary-foreground/90">
-            Quickly turn communication from your favorite apps into to-dos, keeping all your discussions and tasks
-            organized in one place.
+            Quickly turn communication from your favorite apps into to-dos,
+            keeping all your discussions and tasks organized in one place.
           </p>
         </div>
 
@@ -23,14 +30,21 @@ export function IntegrationSection() {
                   <Mail className="h-4 w-4" />
                   EMAIL MAGIC
                 </div>
-                <h3 className="text-2xl font-bold text-foreground">Easily turn your emails into to-dos</h3>
+                <h3 className="text-2xl font-bold text-foreground">
+                  Easily turn your emails into to-dos
+                </h3>
                 <p className="text-muted-foreground">
-                  Forward them to your Trello inbox, and they'll be transformed by Atlassian Intelligence (AI) into
-                  organized to-dos with all the links you need.
+                  Forward them to your Trello inbox, and they'll be transformed
+                  by Atlassian Intelligence (AI) into organized to-dos with all
+                  the links you need.
                 </p>
               </div>
               <div className="aspect-video overflow-hidden rounded-lg bg-muted">
-                <img src="/email-to-task-conversion-interface.jpg" alt="Email integration" className="h-full w-full object-cover" />
+                <img
+                  src="/email-to-task-conversion-interface.jpg"
+                  alt="Email integration"
+                  className="h-full w-full object-cover"
+                />
               </div>
             </div>
           </Card>
@@ -54,8 +68,9 @@ export function IntegrationSection() {
                   Need to follow up on a message from Slack or Microsoft Teams?
                 </h3>
                 <p className="text-muted-foreground">
-                  Send it directly to your Trello board! Your favorite apps interface lets you save messages that appear
-                  in your Trello inbox with AI-generated summaries and links.
+                  Send it directly to your Trello board! Your favorite apps
+                  interface lets you save messages that appear in your Trello
+                  inbox with AI-generated summaries and links.
                 </p>
               </div>
             </div>
@@ -63,5 +78,5 @@ export function IntegrationSection() {
         </div>
       </div>
     </section>
-  )
+  );
 }

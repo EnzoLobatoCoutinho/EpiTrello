@@ -1,0 +1,7 @@
+{
+  "dashboard.title": "Panel de Control",
+  "dashboard.welcome": "Bienvenido, {{email}}",
+  "dashboard.myBoards": "Mis Tableros",
+  "dashboard.listsCount": "{{count}} lista",
+  "dashboard.listsCount_plural": "{{count}} listas"
+}
