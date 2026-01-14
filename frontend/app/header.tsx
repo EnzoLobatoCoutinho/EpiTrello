@@ -12,7 +12,7 @@ import { cookies } from "next/headers";
 import { getServerT } from "@/lib/i18n-server";
 
 export async function Header() {
-  const locale = cookies().get("NEXT_LOCALE")?.value ?? "fr";
+  const locale = (await cookies()).get("NEXT_LOCALE")?.value ?? "fr";
   const t = await getServerT(locale, "header");
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
