@@ -14,6 +14,7 @@ export type CardType = {
   start_date: string;
   due_date: string;
   position: number;
+  checklist?: ChecklistItemType[];
 };
 
 export type ListType = {
@@ -21,4 +22,14 @@ export type ListType = {
   board_id: number;
   title: string;
   position: number;
+};
+
+export type ChecklistItemType = {
+  id: number;
+  card_id: number;
+  title: string;
+  checked: boolean;
+  position?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
 };

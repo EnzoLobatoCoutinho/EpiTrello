@@ -83,6 +83,16 @@ export async function POST(
 
     const newPosition = (lastCard?.position ?? -1) + 1;
 
+    // Prepare checklist items if provided
+    const checklistData = Array.isArray(body.checklist)
+      ? body.checklist.map((it: any) => ({
+          title: String(it.title || ""),
+          checked: !!it.checked,
+          position: it.position ?? null,
+        }))
+      : undefined;
+
+    // Create the card first
     const newCard = await prisma.card.create({
       data: {
         title,
@@ -94,6 +104,28 @@ export async function POST(
         label_id: body.label_id ? Number(body.label_id) : null,
       },
     });
+
+    // If checklist items provided, create them separately and attach to the card
+    let checklistItems: any[] = [];
+    if (Array.isArray(checklistData) && checklistData.length > 0) {
+      try {
+        // map to include card_id
+        const toCreate = checklistData.map((it: any) => ({ ...it, card_id: newCard.id }));
+        // Use createMany if available
+        try {
+          await prisma.checklistItem.createMany({ data: toCreate });
+        } catch (e) {
+          // fallback to individual creates if createMany not supported by client
+          await prisma.$transaction(toCreate.map((d: any) => prisma.checklistItem.create({ data: d })));
+        }
+
+        checklistItems = await prisma.checklistItem.findMany({ where: { card_id: newCard.id } });
+      } catch (e) {
+        console.error("Error creating checklist items:", e);
+      }
+    }
+
+    const cardWithChecklist = checklistItems.length ? { ...newCard, checklist: checklistItems } : newCard;
 
     try {
       const client = await getRedisClient();

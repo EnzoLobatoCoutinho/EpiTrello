@@ -12,11 +12,12 @@ datasource db {
 }
 
 model User {
-  id         Int         @id @default(autoincrement())
-  email      String      @unique
+  id         Int            @id @default(autoincrement())
+  email      String         @unique
   username   String
   password   String
   workspaces Workspace[]
+  boardMembers BoardMember[]
 }
 
 model Workspace {
@@ -29,12 +30,13 @@ model Workspace {
 }
 
 model Board {
-  id           Int       @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   workspace_id Int
   title        String
-  workspace    Workspace @relation(fields: [workspace_id], references: [id])
+  workspace    Workspace     @relation(fields: [workspace_id], references: [id])
   lists        List[]
   labels       Label[]
+  members      BoardMember[]
 }
 
 model List {
@@ -79,4 +81,17 @@ model ChecklistItem {
   updatedAt DateTime @updatedAt
 
   card Card @relation(fields: [card_id], references: [id])
+}
+
+model BoardMember {
+  id         Int      @id @default(autoincrement())
+  board_id   Int
+  user_id    Int
+  role       String   @default("member") // owner, admin, member, viewer
+  addedAt    DateTime @default(now())
+
+  board Board @relation(fields: [board_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([board_id, user_id])
 }

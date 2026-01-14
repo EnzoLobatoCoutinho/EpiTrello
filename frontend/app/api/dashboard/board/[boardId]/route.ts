@@ -67,6 +67,43 @@ export async function GET(
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
+    // Helper to load checklist items for a card with fallback to raw SQL
+    async function loadChecklistForCard(cardId: number) {
+      if ((prisma as any).checklistItem && typeof (prisma as any).checklistItem.findMany === "function") {
+        try {
+          return await (prisma as any).checklistItem.findMany({ 
+            where: { card_id: cardId },
+            orderBy: { position: "asc" }
+          });
+        } catch (e) {
+          console.error("Failed to load checklist via Prisma:", e);
+        }
+      }
+      // Fallback: raw query
+      try {
+        const rows: any[] = await prisma.$queryRaw`
+          SELECT id, card_id, title, checked, position, "createdAt", "updatedAt"
+          FROM "ChecklistItem"
+          WHERE card_id = ${cardId}
+          ORDER BY position NULLS LAST, id
+        `;
+        return rows || [];
+      } catch (rqErr) {
+        console.error("Raw query for checklist items failed:", rqErr);
+        return [];
+      }
+    }
+
+    // Load checklists for all cards
+    const allCards = board.lists.flatMap(l => l.cards || []);
+    const checklistsByCardId: Record<number, any[]> = {};
+    
+    await Promise.all(
+      allCards.map(async (card) => {
+        checklistsByCardId[card.id] = await loadChecklistForCard(card.id);
+      })
+    );
+
     const lists = (board.lists || []).map((l) => ({
       id: l.id,
       title: l.title,
@@ -80,6 +117,7 @@ export async function GET(
         start_date: c.start_date,
         due_date: c.due_date,
         position: c.position,
+        checklist: checklistsByCardId[c.id] || [],
       })),
     }));
 

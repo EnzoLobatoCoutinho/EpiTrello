@@ -28,7 +28,7 @@ import {
 } from "@dnd-kit/sortable";
 import { io } from "socket.io-client";
 import Link from "next/link";
-import { ArrowLeft, Plus, Tag } from "lucide-react";
+import { ArrowLeft, Plus, Tag, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,18 @@ export default function BoardPage({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
+
+  useEffect(() => {
+    try {
+      if (editedCard && typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem(`editedCard-${editedCard.id}`, JSON.stringify(editedCard));
+        } catch (e) {
+          console.warn("Could not save editedCard to sessionStorage", e);
+        }
+      }
+    } catch {}
+  }, [editedCard]);
 
   useEffect(() => {
     async function load() {
@@ -283,28 +295,54 @@ export default function BoardPage({
     }
   };
 
-  const handleSaveCard = async () => {
-    if (!editedCard) return;
+  const handleAutoSaveCard = async (cardToSave: CardType) => {
     const token = localStorage.getItem("token");
     try {
+      // Sanitize and log payload. Always include `checklist` (may be empty)
+      const payload: any = { ...cardToSave } as any;
+      payload.checklist = (cardToSave?.checklist || []).map((it: any) => {
+        const item: any = {
+          title: String(it.title || "").slice(0, 255),
+          checked: !!it.checked,
+          position: it.position ?? null,
+        };
+        // only include id if it's a positive existing id
+        if (it && it.id && Number(it.id) > 0) item.id = Number(it.id);
+        return item;
+      });
+      console.log("Auto-saving card payload (sanitized):", payload);
+
       const res = await fetch(
-        `/api/dashboard/board/${id}/lists/${editedCard.list_id}/cards/${editedCard.id}`,
+        `/api/dashboard/board/${id}/lists/${cardToSave.list_id}/cards/${cardToSave.id}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(editedCard),
+          body: JSON.stringify(payload),
         }
       );
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const text = await res.text().catch(() => "<no body>");
+        console.error("Auto-save card failed:", res.status, text);
+        throw new Error(`API ${res.status}`);
+      }
       const updated = await res.json();
       setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-      setIsDialogOpen(false);
-    } catch {
-      console.error("Error saving card");
+    } catch (e) {
+      console.error("Error auto-saving card:", e);
     }
+  };
+
+  const handleSaveCard = async () => {
+    if (!editedCard) return;
+    await handleAutoSaveCard(editedCard);
+    // Remove draft from sessionStorage after successful save
+    try {
+      if (typeof window !== "undefined") sessionStorage.removeItem(`editedCard-${editedCard.id}`);
+    } catch (e) {}
+    setIsDialogOpen(false);
   };
 
   const handleSaveNewCard = async () => {
@@ -389,6 +427,9 @@ export default function BoardPage({
         }
       );
       setCards((prev) => prev.filter((c) => c.id !== cardId));
+      try {
+        if (typeof window !== "undefined") sessionStorage.removeItem(`editedCard-${cardId}`);
+      } catch (e) {}
       setIsDialogOpen(false);
     } catch (err) {
       console.error("Error deleting card", err);
@@ -465,9 +506,20 @@ export default function BoardPage({
               size="icon"
               className="text-white hover:bg-white/20"
               onClick={() => setIsLabelDialogOpen(true)}
+              title="Gérer les labels"
             >
               <Tag className="h-5 w-5" />
             </Button>
+            <Link href={`/dashboard/board/${id}/members`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/20"
+                title="Gérer les membres"
+              >
+                <Users className="h-5 w-5" />
+              </Button>
+            </Link>
             <Link href={`/dashboard/board/${id}/table`}>
               <Button variant="secondary">{t("board.view.table")}</Button>
             </Link>
@@ -564,6 +616,7 @@ export default function BoardPage({
         card={editedCard}
         setCard={setEditedCard as any}
         onSave={handleSaveCard}
+        onAutoSave={handleAutoSaveCard}
         onDelete={handleDeleteCard}
         labels={labels}
       />

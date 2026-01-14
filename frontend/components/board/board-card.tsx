@@ -88,6 +88,13 @@ export function BoardCard({ card, label, onClick }: BoardCardProps) {
       </div>
 
       {card.description && <p className="text-sm text-muted-foreground">{card.description}</p>}
+      {card.checklist && card.checklist.length > 0 && (
+        <div className="mt-2 flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            ✅ {card.checklist.filter((i) => i.checked).length}/{card.checklist.length}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

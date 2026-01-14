@@ -6,7 +6,7 @@
  */
 
 "use client";
-
+import React from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Trash2, Plus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -27,12 +28,21 @@ import {
 } from "@/components/ui/select";
 import type { CardType, LabelType } from "@/types/board";
 
+type ChecklistItem = {
+  id: number;
+  card_id: number;
+  title: string;
+  checked: boolean;
+  position?: number | null;
+};
+
 interface EditCardDialogProps {
   isOpen: boolean;
   onClose: () => void;
   card: CardType | null;
   setCard: (card: CardType) => void;
   onSave: () => void;
+  onAutoSave?: (card: CardType) => void;
   onDelete?: (cardId: number) => void;
   labels: LabelType[];
 }
@@ -43,6 +53,7 @@ export function EditCardDialog({
   card,
   setCard,
   onSave,
+  onAutoSave,
   onDelete,
   labels,
 }: EditCardDialogProps) {
@@ -150,6 +161,70 @@ export function EditCardDialog({
               />
             </div>
           </div>
+
+          <div className="space-y-2">
+            <Label>Checklist</Label>
+            <div className="space-y-2">
+              {(card.checklist || []).map((item) => (
+                <div key={item.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!item.checked}
+                    onChange={(e) => {
+                      const updatedCard = {
+                        ...card,
+                        checklist: (card.checklist || []).map((it) =>
+                          it.id === item.id ? { ...it, checked: e.target.checked } : it
+                        ),
+                      } as CardType;
+                      setCard(updatedCard);
+                      // Auto-save immediately when checkbox is toggled
+                      if (onAutoSave) {
+                        onAutoSave(updatedCard);
+                      }
+                    }}
+                  />
+                  <input
+                    className="flex-1 bg-white border rounded px-2 py-1"
+                    value={item.title}
+                    onChange={(e) =>
+                      setCard({
+                        ...card,
+                        checklist: (card.checklist || []).map((it) =>
+                          it.id === item.id ? { ...it, title: e.target.value } : it
+                        ),
+                      } as CardType)
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      setCard({
+                        ...card,
+                        checklist: (card.checklist || []).filter((it) => it.id !== item.id),
+                      } as CardType)
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              ))}
+
+              <AddChecklistInput
+                onAdd={(title) => {
+                  const nextId = Date.now() * -1; // temporary negative id
+                  const newItem: ChecklistItem = {
+                    id: nextId,
+                    card_id: card.id,
+                    title,
+                    checked: false,
+                  };
+                  setCard({ ...card, checklist: [...(card.checklist || []), newItem] } as CardType);
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
@@ -180,5 +255,33 @@ export function EditCardDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AddChecklistInput({ onAdd }: { onAdd: (title: string) => void }) {
+  const [val, setVal] = React.useState("");
+  return (
+    <div className="flex gap-2">
+      <Input
+        placeholder="Nouvel item"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && val.trim()) {
+            onAdd(val.trim());
+            setVal("");
+          }
+        }}
+      />
+      <Button
+        onClick={() => {
+          if (!val.trim()) return;
+          onAdd(val.trim());
+          setVal("");
+        }}
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
+    </div>
   );
 }

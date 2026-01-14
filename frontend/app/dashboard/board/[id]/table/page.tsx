@@ -259,6 +259,21 @@ export default function TablePage({
 
     try {
       let res;
+      // sanitize checklist: remove temporary/non-positive ids so server creates new items
+      const payload: any = { ...editedCard } as any;
+      if (Array.isArray(payload.checklist)) {
+        payload.checklist = payload.checklist.map((it: any) => {
+          const item: any = {
+            title: String(it.title || "").slice(0, 255),
+            checked: !!it.checked,
+            position: it.position ?? null,
+          };
+          if (it.id && Number(it.id) > 0) item.id = Number(it.id);
+          return item;
+        });
+      }
+      console.log("Table saving card payload (sanitized):", payload);
+
       if (isNew) {
         res = await fetch(`/api/dashboard/board/${id}/lists/${editedCard.list_id}/cards`, {
           method: "POST",
@@ -266,7 +281,7 @@ export default function TablePage({
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(editedCard),
+          body: JSON.stringify(payload),
         });
       } else {
         res = await fetch(
@@ -277,7 +292,7 @@ export default function TablePage({
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(editedCard),
+            body: JSON.stringify(payload),
           }
         );
       }
