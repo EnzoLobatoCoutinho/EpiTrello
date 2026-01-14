@@ -13,7 +13,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { getServerT } from "@/lib/i18n-server";
 
 export default async function Home() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "fr";
   const tHeader = await getServerT(locale, "header");
   const tLanding = await getServerT(locale, "landing");
