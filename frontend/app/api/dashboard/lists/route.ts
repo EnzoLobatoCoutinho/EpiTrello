@@ -22,13 +22,14 @@ function getUserIdFromReq(req: Request) {
   }
 }
 
-export async function POST(req: Request, context: { params: { id: string } }) {
+export async function POST(req: Request) {
   const userId = getUserIdFromReq(req);
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const boardId = Number(context.params.id);
-  if (Number.isNaN(boardId))
+  const body = await req.json().catch(() => ({}));
+  const boardId = body.boardId ? Number(body.boardId) : null;
+  if (!boardId || Number.isNaN(boardId))
     return NextResponse.json({ error: "Invalid board id" }, { status: 400 });
   const board = await prisma.board.findFirst({
     where: { id: boardId, workspace: { owner_id: Number(userId) } },
@@ -39,7 +40,6 @@ export async function POST(req: Request, context: { params: { id: string } }) {
       { status: 404 }
     );
 
-  const body = await req.json().catch(() => ({}));
   const title = (body.title || "Nouvelle liste").slice(0, 255);
   const maxPos = await prisma.list.aggregate({
     where: { board_id: boardId },

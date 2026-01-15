@@ -75,6 +75,7 @@ export async function updatePasswordAction(formData: FormData) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { error: "Utilisateur introuvable" };
 
+  if (!user.password) return { error: "Ce compte n'a pas de mot de passe (authentification OAuth)." };
   const isMatch = await bcrypt.compare(currentPassword, user.password);
   if (!isMatch) return { error: "Mot de passe actuel incorrect." };
 
