@@ -9,6 +9,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app:
     build:
@@ -24,7 +29,22 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URLS: "http://localhost:3000,https://www.enzolobatocoutinho.fr"
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+    restart: unless-stopped
 
   redis:
     image: redis:alpine

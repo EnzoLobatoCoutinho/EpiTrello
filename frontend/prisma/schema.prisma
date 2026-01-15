@@ -18,6 +18,7 @@ model User {
   password   String
   workspaces Workspace[]
   boardMembers BoardMember[]
+  actionHistory ActionHistory[]
 }
 
 model Workspace {
@@ -37,6 +38,7 @@ model Board {
   lists        List[]
   labels       Label[]
   members      BoardMember[]
+  actionHistory ActionHistory[]
 }
 
 model List {
@@ -94,4 +96,21 @@ model BoardMember {
   user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([board_id, user_id])
+}
+
+model ActionHistory {
+  id              Int       @id @default(autoincrement())
+  board_id        Int
+  user_id         Int
+  action_type     String    // create_card, update_card, delete_card, create_list, etc.
+  entity_type     String    // card, list, board
+  entity_id       Int       // id of the entity affected
+  previous_state  Json?     // snapshot of state before action
+  new_state       Json?     // snapshot of state after action
+  rolled_back     Boolean   @default(false)
+  rolled_back_at  DateTime?
+  created_at      DateTime  @default(now())
+
+  board Board @relation(fields: [board_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }

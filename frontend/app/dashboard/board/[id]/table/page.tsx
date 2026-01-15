@@ -536,7 +536,7 @@ export default function TablePage({
                           const label = getLabel(card.label_id);
                           const listTitle = getListTitle(card.list_id);
                           return (
-                            <CardRow key={card.id} card={card} label={label} listTitle={listTitle} onEdit={handleEditClick} onDelete={handleDelete} />
+                            <CardRow key={`card-${card.id}`} card={card} label={label} listTitle={listTitle} onEdit={handleEditClick} onDelete={handleDelete} />
                           );
                         })
                       )}

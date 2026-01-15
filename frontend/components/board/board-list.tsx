@@ -116,7 +116,7 @@ export function BoardList({
               const cardLabel = labels.find((l) => l.id === card.label_id);
               return (
                 <BoardCard
-                  key={card.id}
+                  key={`card-${card.id}`}
                   card={card}
                   label={cardLabel}
                   onClick={() => onCardClick(card)}

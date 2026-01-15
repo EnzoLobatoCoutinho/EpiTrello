@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { BoardList } from "@/components/board/board-list";
 import { EditCardDialog } from "@/components/board/edit-card-dialog";
 import { CreateLabelDialog } from "@/components/board/create-label-dialog";
+import { ActionHistoryDialog } from "@/components/board/action-history-dialog";
 import type { CardType, ListType, LabelType } from "@/types/board";
 
 
@@ -385,7 +386,8 @@ export default function BoardPage({
         body: JSON.stringify({ title: newListTitle }),
       });
       const newList = await res.json();
-      setLists((prev) => [...prev, newList]);
+      // Don't add immediately - let Socket.IO handle it to avoid duplicates
+      // setLists((prev) => [...prev, newList]);
       setNewListTitle("");
       setIsAddingList(false);
     } catch {
@@ -501,6 +503,7 @@ export default function BoardPage({
             <h1 className="text-2xl font-bold text-white">{board.title}</h1>
           </div>
           <div className="flex items-center gap-2">
+            <ActionHistoryDialog boardId={Number(id)} />
             <Button
               variant="ghost"
               size="icon"
@@ -544,7 +547,7 @@ export default function BoardPage({
               {/* LISTES */}
               {lists.map((list) => (
                 <BoardList
-                  key={list.id}
+                  key={`list-${list.id}`}
                   list={list}
                   cards={cards
                     .filter((c) => c.list_id === list.id)

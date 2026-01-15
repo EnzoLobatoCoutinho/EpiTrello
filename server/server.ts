@@ -9,20 +9,24 @@ import { Server } from "socket.io";
 import { createClient } from "redis";
 
 const PORT = 4000;
-const FRONTEND_URL = "http://localhost:3000";
+const NODE_ENV = process.env.NODE_ENV || "development";
+const FRONTEND_URLS = (process.env.FRONTEND_URLS || "http://localhost:3000").split(",").map(url => url.trim());
+const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 async function startServer() {
   const httpServer = createServer();
 
+  const corsOptions = NODE_ENV === "development" ? { origin: "*", methods: ["GET", "POST"] } : { 
+    origin: FRONTEND_URLS,
+    methods: ["GET", "POST"],
+    credentials: true,
+  };
+
   const io = new Server(httpServer, {
-    cors: {
-      origin: FRONTEND_URL,
-      methods: ["GET", "POST"],
-    },
+    cors: corsOptions,
   });
 
-  const redisUrl = "redis://localhost:6379";
-  const subClient = createClient({ url: redisUrl });
+  const subClient = createClient({ url: REDIS_URL });
 
   subClient.on("error", (err) => console.error("Redis Client Error", err));
 
