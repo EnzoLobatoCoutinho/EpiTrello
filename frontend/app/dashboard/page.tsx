@@ -34,7 +34,7 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="p-4 md:p-8">
+    <>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground md:text-3xl">
@@ -72,6 +72,6 @@ export default async function DashboardPage() {
           <CreateBoardDialog triggerStyle="card" />
         </div>
       </div>
-    </div>
+    </>
   );
 }
