@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-
-async function getUserId(token: string | undefined) {
-  if (!token) return null;
-  try {
-    const decoded = jwt.decode(token) as { userId: number };
-    return decoded?.userId;
-  } catch {
-    return null;
-  }
-}
+import { getUserIdFromRequest } from "@/lib/auth-utils";
 
 export async function POST(request: NextRequest) {
-  const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-  const userId = await getUserId(token);
+  const userId = await getUserIdFromRequest(request);
 
   if (!userId) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
@@ -191,16 +180,18 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-  const userId = await getUserId(token);
+  const userId = await getUserIdFromRequest(request);
 
   if (!userId) {
+    console.log("[ROLLBACK] User not authenticated");
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
   try {
     const boardId = Number(request.nextUrl.searchParams.get("boardId"));
     const limit = Number(request.nextUrl.searchParams.get("limit")) || 10;
+
+    console.log("[ROLLBACK] Getting history for boardId:", boardId, "userId:", userId);
 
     // Verify user has access to board
     const board = await prisma.board.findUnique({
@@ -211,11 +202,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (!board) {
+      console.log("[ROLLBACK] Board not found:", boardId);
       return NextResponse.json({ error: "Tableau non trouvé" }, { status: 404 });
     }
 
     // Check if user is workspace owner
     const isWorkspaceOwner = board.workspace.owner_id === userId;
+    console.log("[ROLLBACK] isWorkspaceOwner:", isWorkspaceOwner, "workspace owner_id:", board.workspace.owner_id, "userId:", userId);
 
     // Check if user is board member
     const boardMember = await prisma.boardMember.findUnique({
@@ -227,7 +220,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    console.log("[ROLLBACK] boardMember:", boardMember ? "found" : "not found");
+
     if (!isWorkspaceOwner && !boardMember) {
+      console.log("[ROLLBACK] Access denied: user is neither workspace owner nor board member");
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

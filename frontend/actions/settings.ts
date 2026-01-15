@@ -14,8 +14,17 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 async function getUserId() {
+  // D'abord essayer NextAuth
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return Number(session.user.id);
+  }
+
+  // Fallback sur JWT token pour compatibilité
   const token = (await cookies()).get("token")?.value;
   if (!token) return null;
   try {

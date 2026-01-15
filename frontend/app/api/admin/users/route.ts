@@ -8,33 +8,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
-
-async function getUserIdFromReq(req: Request) {
-  const auth = req.headers.get("authorization") || "";
-  let token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-
-  if (!token) {
-    const cookieStore = await cookies();
-    token = cookieStore.get("token")?.value || null;
-  }
-
-  if (!token) return null;
-
-  try {
-    const secret = process.env.JWT_SECRET || "dev_secret";
-    const payload: any = jwt.verify(token, secret);
-    return payload?.id ?? payload?.userId ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getUserIdFromRequest } from "@/lib/auth-utils";
 
 // GET - List all users with their workspaces
 export async function GET(req: Request) {
   try {
-    const userId = await getUserIdFromReq(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -75,7 +54,7 @@ export async function GET(req: Request) {
 // POST - Create a new user
 export async function POST(req: Request) {
   try {
-    const userId = await getUserIdFromReq(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

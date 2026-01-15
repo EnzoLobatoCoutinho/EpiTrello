@@ -7,29 +7,8 @@
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 import { sendBoardInvitationEmail } from "@/lib/resend";
-
-async function getUserIdFromReq(req: Request) {
-  const auth = req.headers.get("authorization") || "";
-  let token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-
-  if (!token) {
-    const cookieStore = await cookies();
-    token = cookieStore.get("token")?.value || null;
-  }
-
-  if (!token) return null;
-
-  try {
-    const secret = process.env.JWT_SECRET || "dev_secret";
-    const payload: any = jwt.verify(token, secret);
-    return payload?.id ?? payload?.userId ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getUserIdFromRequest } from "@/lib/auth-utils";
 
 // GET - List all members of a board
 export async function GET(
@@ -37,7 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ boardId: string }> }
 ) {
   try {
-    const userId = await getUserIdFromReq(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -135,7 +114,7 @@ export async function POST(
   { params }: { params: Promise<{ boardId: string }> }
 ) {
   try {
-    const userId = await getUserIdFromReq(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

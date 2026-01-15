@@ -7,23 +7,10 @@
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-
-function getUserIdFromReq(req: Request) {
-  const auth = req.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (!token) return null;
-  try {
-    const secret = process.env.JWT_SECRET || "dev_secret";
-    const payload: any = jwt.verify(token, secret);
-    return payload?.id ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getUserIdFromRequest } from "@/lib/auth-utils";
 
 export async function POST(req: Request) {
-  const userId = getUserIdFromReq(req);
+  const userId = await getUserIdFromRequest(req);
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

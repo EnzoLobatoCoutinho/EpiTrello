@@ -30,6 +30,15 @@ export const authOptions: NextAuthOptions = {
         secure: isSecure,
       },
     },
+    sessionToken: {
+      name: isSecure ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isSecure,
+      },
+    },
   },
   providers: [
     GoogleProvider({
@@ -75,56 +84,102 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider === "google") {
-        // Vérifier si l'utilisateur existe déjà
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
+    async signIn({ user, account, profile }) {
+      try {
+        if (account?.provider === "google") {
+          console.log("[AUTH] Google signIn for:", user.email);
+          
+          // Vérifier si l'utilisateur existe déjà
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+          });
 
-        if (existingUser && !existingUser.googleId) {
-          // Lier le compte Google à l'utilisateur existant
-          await prisma.user.update({
-            where: { id: existingUser.id },
-            data: {
-              googleId: account.providerAccountId,
-              image: user.image,
-              emailVerified: new Date(),
-            },
-          });
-        } else if (!existingUser) {
-          // Créer un nouvel utilisateur avec Google
-          await prisma.user.create({
-            data: {
-              email: user.email!,
-              username: user.name || user.email!.split("@")[0],
-              googleId: account.providerAccountId,
-              image: user.image,
-              emailVerified: new Date(),
-            },
-          });
+          if (existingUser) {
+            console.log("[AUTH] User exists:", existingUser.id);
+            
+            if (!existingUser.googleId) {
+              // Lier le compte Google à l'utilisateur existant
+              await prisma.user.update({
+                where: { id: existingUser.id },
+                data: {
+                  googleId: account.providerAccountId,
+                  image: user.image,
+                  emailVerified: new Date(),
+                },
+              });
+              console.log("[AUTH] Google account linked to existing user");
+            }
+            
+            // Vérifier si l'utilisateur a un workspace
+            const workspace = await prisma.workspace.findFirst({
+              where: { owner_id: existingUser.id },
+            });
+            
+            if (!workspace) {
+              console.log("[AUTH] Creating workspace for existing user");
+              await prisma.workspace.create({
+                data: {
+                  owner_id: existingUser.id,
+                  description: `${existingUser.username}'s workspace`,
+                  status: "active",
+                },
+              });
+            }
+            
+            // Update the user object with the database ID
+            user.id = existingUser.id.toString();
+          } else {
+            console.log("[AUTH] Creating new Google user:", user.email);
+            
+            // Créer un nouvel utilisateur avec Google
+            const newUser = await prisma.user.create({
+              data: {
+                email: user.email!,
+                username: user.name || user.email!.split("@")[0],
+                googleId: account.providerAccountId,
+                image: user.image,
+                emailVerified: new Date(),
+              },
+            });
+
+            console.log("[AUTH] New user created:", newUser.id);
+
+            // Créer un workspace par défaut pour le nouvel utilisateur
+            const workspace = await prisma.workspace.create({
+              data: {
+                owner_id: newUser.id,
+                description: `${newUser.username}'s workspace`,
+                status: "active",
+              },
+            });
+            
+            console.log("[AUTH] Workspace created:", workspace.id);
+            
+            // Update the user object with the new database ID
+            user.id = newUser.id.toString();
+          }
         }
+      } catch (error) {
+        console.error("[AUTH] Error in signIn callback:", error);
+        throw error;
       }
       return true;
     },
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.sub!;
+    async session({ session, user }) {
+      if (session.user && user) {
+        session.user.id = user.id.toString();
+        console.log("[AUTH] Database session - user.id:", user.id);
       }
       return session;
-    },
-    async jwt({ token, user }) {
-      if (user) {
-        token.sub = user.id;
-      }
-      return token;
     },
   },
   pages: {
     signIn: "/login",
   },
   session: {
-    strategy: "jwt",
+    strategy: "database",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

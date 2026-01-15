@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { CreateBoardDialog } from "@/components/dashboard/create-board-dialog";
 import { getServerT } from "@/lib/i18n-server";
+import { getCurrentUser } from "@/lib/auth-utils";
+import { cookies } from "next/headers";
 
 interface Board {
   id: number;
@@ -15,18 +15,8 @@ interface Board {
   };
 }
 
-async function getUser() {
-  const token = (await cookies()).get("token")?.value;
-  if (!token) return null;
-  try {
-    return jwt.decode(token) as { userId: number; email: string };
-  } catch {
-    return null;
-  }
-}
-
 export default async function DashboardPage() {
-  const user = await getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const cookieStore = await cookies();

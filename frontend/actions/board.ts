@@ -12,12 +12,21 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const CreateBoardSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
 });
 
 async function getUserId() {
+  // D'abord essayer NextAuth
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return Number(session.user.id);
+  }
+
+  // Fallback sur JWT token pour compatibilité
   const token = (await cookies()).get("token")?.value;
   if (!token) return null;
   try {

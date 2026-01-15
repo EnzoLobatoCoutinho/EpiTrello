@@ -8,23 +8,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-
-function getUserIdFromReq(req: Request) {
-  const auth = req.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (!token) return null;
-  try {
-    const secret = process.env.JWT_SECRET || "dev_secret";
-    const payload: any = jwt.verify(token, secret);
-    return payload?.id ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getUserIdFromRequest } from "@/lib/auth-utils";
 
 export async function GET(req: Request) {
-  const id = getUserIdFromReq(req);
+  const id = await getUserIdFromRequest(req);
   if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await prisma.user.findUnique({
     where: { id: Number(id) },
@@ -39,7 +26,7 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const id = getUserIdFromReq(req);
+  const id = await getUserIdFromRequest(req);
   if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json();
   const { name, currentPassword, newPassword } = body;
@@ -59,7 +46,7 @@ export async function PUT(req: Request) {
         where: { id: Number(id) },
         select: { password: true },
       });
-      if (!user)
+      if (!user || !user.password)
         return NextResponse.json(
           { error: "Utilisateur introuvable" },
           { status: 404 }
@@ -90,7 +77,7 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const id = getUserIdFromReq(req);
+  const id = await getUserIdFromRequest(req);
   if (!id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     await prisma.user.delete({ where: { id: Number(id) } });
