@@ -250,8 +250,9 @@ export async function GET(request: NextRequest) {
       data: actionHistory,
     });
   } catch (error) {
+    console.error("Error fetching action history:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la récupération de l'historique" },
+      { error: "Erreur lors de la récupération de l'historique", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

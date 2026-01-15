@@ -89,6 +89,29 @@ export async function PUT(
       data: updateData,
     });
 
+    // Log action history for card update
+    try {
+      const parentList = await prisma.list.findUnique({
+        where: { id: updatedCard.list_id },
+        select: { board_id: true },
+      });
+      if (parentList) {
+        await prisma.actionHistory.create({
+          data: {
+            board_id: parentList.board_id,
+            user_id: userId,
+            action_type: "update_card",
+            entity_type: "card",
+            entity_id: idCard,
+            previous_state: existingCard,
+            new_state: updatedCard,
+          },
+        });
+      }
+    } catch (e) {
+      console.error("Error logging action history:", e);
+    }
+
       if (body.checklist !== undefined) {
       console.log("Synchronizing checklist for card", idCard);
       try {
@@ -296,6 +319,22 @@ export async function DELETE(
 
     if (!cardToDelete)
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
+
+    // Log action history before deletion
+    try {
+      await prisma.actionHistory.create({
+        data: {
+          board_id: cardToDelete.list.board_id,
+          user_id: userId,
+          action_type: "delete_card",
+          entity_type: "card",
+          entity_id: idCard,
+          previous_state: cardToDelete,
+        },
+      });
+    } catch (e) {
+      console.error("Error logging action history:", e);
+    }
 
     await prisma.card.delete({
       where: { id: idCard },

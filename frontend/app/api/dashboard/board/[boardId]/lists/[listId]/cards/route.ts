@@ -127,6 +127,22 @@ export async function POST(
 
     const cardWithChecklist = checklistItems.length ? { ...newCard, checklist: checklistItems } : newCard;
 
+    // Log action history
+    try {
+      await prisma.actionHistory.create({
+        data: {
+          board_id: list.board_id,
+          user_id: userId,
+          action_type: "create_card",
+          entity_type: "card",
+          entity_id: newCard.id,
+          new_state: newCard,
+        },
+      });
+    } catch (e) {
+      console.error("Error logging action history:", e);
+    }
+
     try {
       const client = await getRedisClient();
       await client.publish(

@@ -48,12 +48,20 @@ export function ActionHistoryDialog({ boardId }: ActionHistoryDialogProps) {
     }
   }, [isOpen]);
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    // Reload page when closing the modal
+    if (!open) {
+      window.location.reload();
+    }
+  };
+
   const fetchActionHistory = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `/api/rollback?boardId=${boardId}&limit=20`,
+        `/api/rollback?boardId=${boardId}&limit=50`,
         {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         }
@@ -71,8 +79,11 @@ export function ActionHistoryDialog({ boardId }: ActionHistoryDialogProps) {
     }
   };
 
-  const handleRollback = async (actionId: number) => {
-    setRollingBackId(actionId);
+  const handleRollback = async () => {
+    if (actions.length === 0) return;
+    
+    const latestAction = actions[0];
+    setRollingBackId(latestAction.id);
     try {
       const token = localStorage.getItem("token");
       const response = await fetch("/api/rollback", {
@@ -82,7 +93,7 @@ export function ActionHistoryDialog({ boardId }: ActionHistoryDialogProps) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          actionHistoryId: actionId,
+          actionHistoryId: latestAction.id,
           boardId,
         }),
       });
@@ -91,7 +102,8 @@ export function ActionHistoryDialog({ boardId }: ActionHistoryDialogProps) {
 
       if (response.ok) {
         toast.success("Action annulée avec succès");
-        setActions(actions.filter((a) => a.id !== actionId));
+        // Reload the history without closing the modal
+        await fetchActionHistory();
       } else {
         toast.error(data.error || "Erreur lors de l'annulation");
       }
@@ -115,7 +127,7 @@ export function ActionHistoryDialog({ boardId }: ActionHistoryDialogProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -127,11 +139,11 @@ export function ActionHistoryDialog({ boardId }: ActionHistoryDialogProps) {
           Annuler une action
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Historique des actions</DialogTitle>
           <DialogDescription>
-            Cliquez sur "Annuler" pour revenir à l'état précédent d'une action
+            Liste complète des actions effectuées sur ce tableau
           </DialogDescription>
         </DialogHeader>
 
@@ -141,41 +153,55 @@ export function ActionHistoryDialog({ boardId }: ActionHistoryDialogProps) {
           </div>
         ) : actions.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            Aucune action récente à annuler
+            Aucune action enregistrée
           </div>
         ) : (
-          <div className="space-y-2">
-            {actions.map((action) => (
-              <div
-                key={action.id}
-                className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
-              >
-                <div className="flex-1">
-                  <p className="font-medium">{getActionLabel(action.action_type)}</p>
-                  <p className="text-sm text-gray-500">
-                    {action.user.username} •{" "}
-                    {new Date(action.created_at).toLocaleString("fr-FR")}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRollback(action.id)}
-                  disabled={rollingBackId === action.id}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          <>
+            <div className="overflow-y-auto pr-2 space-y-2 flex-1">
+              {actions.map((action, index) => (
+                <div
+                  key={action.id}
+                  className={`p-3 border rounded-lg ${index === 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}
                 >
-                  {rollingBackId === action.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <RotateCcw className="w-4 h-4 mr-1" />
-                      Annuler
-                    </>
-                  )}
-                </Button>
-              </div>
-            ))}
-          </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{getActionLabel(action.action_type)}</p>
+                        {index === 0 && (
+                          <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
+                            Dernière action
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 truncate mt-1">
+                        {action.user.username} • {new Date(action.created_at).toLocaleString("fr-FR")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="pt-4 border-t mt-4">
+              <Button
+                onClick={handleRollback}
+                disabled={rollingBackId !== null}
+                className="w-full"
+                variant="destructive"
+              >
+                {rollingBackId !== null ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Annulation en cours...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Annuler la dernière action
+                  </>
+                )}
+              </Button>
+            </div>
+          </>
         )}
       </DialogContent>
     </Dialog>

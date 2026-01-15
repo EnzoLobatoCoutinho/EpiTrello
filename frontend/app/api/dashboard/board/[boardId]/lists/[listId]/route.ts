@@ -68,10 +68,33 @@ export async function PUT(
     if (body.position !== undefined)
       updateData.position = Number(body.position);
 
+    const existingList = await prisma.list.findUnique({
+      where: { id: idList },
+    });
+
     const updatedList = await prisma.list.update({
       where: { id: idList },
       data: updateData,
     });
+
+    // Log action history
+    if (existingList) {
+      try {
+        await prisma.actionHistory.create({
+          data: {
+            board_id: updatedList.board_id,
+            user_id: userId,
+            action_type: "update_list",
+            entity_type: "list",
+            entity_id: idList,
+            previous_state: existingList,
+            new_state: updatedList,
+          },
+        });
+      } catch (e) {
+        console.error("Error logging action history:", e);
+      }
+    }
 
     try {
       const client = await getRedisClient();
@@ -106,6 +129,29 @@ export async function DELETE(
     const userId = await getUserIdFromReq(req);
     if (!userId)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const listToDelete = await prisma.list.findUnique({
+      where: { id: Number(listId) },
+    });
+
+    if (!listToDelete)
+      return NextResponse.json({ error: "List not found" }, { status: 404 });
+
+    // Log action history before deletion
+    try {
+      await prisma.actionHistory.create({
+        data: {
+          board_id: listToDelete.board_id,
+          user_id: userId,
+          action_type: "delete_list",
+          entity_type: "list",
+          entity_id: Number(listId),
+          previous_state: listToDelete,
+        },
+      });
+    } catch (e) {
+      console.error("Error logging action history:", e);
+    }
 
     await prisma.card.deleteMany({ where: { list_id: Number(listId) } });
 

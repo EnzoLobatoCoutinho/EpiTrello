@@ -81,6 +81,22 @@ export async function POST(
       },
     });
 
+    // Log action history
+    try {
+      await prisma.actionHistory.create({
+        data: {
+          board_id: idBoard,
+          user_id: userId,
+          action_type: "create_list",
+          entity_type: "list",
+          entity_id: newList.id,
+          new_state: newList,
+        },
+      });
+    } catch (e) {
+      console.error("Error logging action history:", e);
+    }
+
     try {
       const client = await getRedisClient();
       await client.publish(
