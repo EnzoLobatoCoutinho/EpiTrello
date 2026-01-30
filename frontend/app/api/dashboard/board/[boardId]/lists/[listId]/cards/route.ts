@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createClient } from "redis";
 import { getUserIdFromRequest } from "@/lib/auth-utils";
+import { createCalendarEvent } from "@/lib/google-calendar";
 
 const redisUrl = process.env.REDIS_URL || "redis://redis:6379";
 const redis = createClient({ url: redisUrl });
@@ -105,6 +106,35 @@ export async function POST(
     }
 
     const cardWithChecklist = checklistItems.length ? { ...newCard, checklist: checklistItems } : newCard;
+
+    // Sync with Google Calendar if user is connected
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { googleCalendarToken: true }
+      });
+
+      if (user?.googleCalendarToken) {
+        const googleEventId = await createCalendarEvent(userId, {
+          title: newCard.title,
+          description: newCard.description,
+          start_date: newCard.start_date,
+          due_date: newCard.due_date,
+        });
+
+        // Update card with Google event ID
+        if (googleEventId) {
+          await prisma.card.update({
+            where: { id: newCard.id },
+            data: { googleEventId },
+          });
+          console.log('✅ Card synced to Google Calendar:', googleEventId);
+        }
+      }
+    } catch (calError) {
+      console.error('Failed to sync with Google Calendar:', calError);
+      // Continue without failing the card creation
+    }
 
     // Log action history
     try {

@@ -28,7 +28,7 @@ import {
 } from "@dnd-kit/sortable";
 import { io } from "socket.io-client";
 import Link from "next/link";
-import { ArrowLeft, Plus, Tag, Users, Download, Upload } from "lucide-react";
+import { ArrowLeft, Plus, Tag, Users, Download, Upload, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,6 +68,7 @@ export default function BoardPage({
   const [newCardTitle, setNewCardTitle] = useState("");
   const [isSavingCard, setIsSavingCard] = useState(false);
   const fileInputRef = useState<HTMLInputElement | null>(null)[0];
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -113,6 +114,25 @@ export default function BoardPage({
     }
     load();
   }, [id]);
+
+  useEffect(() => {
+    // Check if calendar is connected
+    async function checkCalendarConnection() {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch('/api/user/calendar-status', {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setIsCalendarConnected(data.connected);
+        }
+      } catch (e) {
+        console.error('Failed to check calendar status:', e);
+      }
+    }
+    checkCalendarConnection();
+  }, []);
 
   useEffect(() => {
     const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL);
@@ -479,6 +499,20 @@ export default function BoardPage({
     }
   }
 
+  const handleConnectCalendar = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch('/api/auth/google-calendar/url', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const data = await res.json();
+      window.location.href = data.url;
+    } catch (e) {
+      console.error('Failed to get calendar auth URL:', e);
+      alert('Erreur lors de la connexion à Google Calendar');
+    }
+  };
+
   async function handleExportJSON() {
     const exportData = {
       lists: lists.map(l => ({ 
@@ -621,6 +655,22 @@ export default function BoardPage({
             <h1 className="text-2xl font-bold text-white">{board.title}</h1>
           </div>
           <div className="flex items-center gap-2">
+            {!isCalendarConnected && (
+              <Button
+                variant="secondary"
+                onClick={handleConnectCalendar}
+                className="gap-2"
+              >
+                <CalendarIcon className="h-4 w-4" />
+                Connecter Calendar
+              </Button>
+            )}
+            {isCalendarConnected && (
+              <div className="flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1.5 rounded-md text-sm font-medium">
+                <CalendarIcon className="h-4 w-4" />
+                Calendar connecté
+              </div>
+            )}
             <ActionHistoryDialog boardId={Number(id)} />
             <Button
               variant="ghost"

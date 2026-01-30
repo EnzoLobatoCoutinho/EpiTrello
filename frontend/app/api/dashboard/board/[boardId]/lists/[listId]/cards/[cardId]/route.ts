@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createClient } from "redis";
 import { getUserIdFromRequest } from "@/lib/auth-utils";
+import { updateCalendarEvent, createCalendarEvent, deleteCalendarEvent } from "@/lib/google-calendar";
 
 const redisUrl = process.env.REDIS_URL || "redis://redis:6379";
 const redis = createClient({ url: redisUrl });
@@ -67,6 +68,45 @@ export async function PUT(
       where: { id: idCard },
       data: updateData,
     });
+
+    // Sync with Google Calendar
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { googleCalendarToken: true }
+      });
+
+      if (user?.googleCalendarToken) {
+        if (updatedCard.googleEventId) {
+          // Update existing event
+          await updateCalendarEvent(userId, updatedCard.googleEventId, {
+            title: updatedCard.title,
+            description: updatedCard.description,
+            start_date: updatedCard.start_date,
+            due_date: updatedCard.due_date,
+          });
+          console.log('✅ Google Calendar event updated');
+        } else {
+          // Create new event if doesn't exist
+          const googleEventId = await createCalendarEvent(userId, {
+            title: updatedCard.title,
+            description: updatedCard.description,
+            start_date: updatedCard.start_date,
+            due_date: updatedCard.due_date,
+          });
+
+          if (googleEventId) {
+            await prisma.card.update({
+              where: { id: idCard },
+              data: { googleEventId },
+            });
+            console.log('✅ Card synced to Google Calendar:', googleEventId);
+          }
+        }
+      }
+    } catch (calError) {
+      console.error('Failed to sync with Google Calendar:', calError);
+    }
 
     // Log action history for card update
     try {
@@ -298,6 +338,21 @@ export async function DELETE(
 
     if (!cardToDelete)
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
+
+    // Delete from Google Calendar first
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { googleCalendarToken: true }
+      });
+
+      if (user?.googleCalendarToken && cardToDelete.googleEventId) {
+        await deleteCalendarEvent(userId, cardToDelete.googleEventId);
+        console.log('✅ Google Calendar event deleted:', cardToDelete.googleEventId);
+      }
+    } catch (calError) {
+      console.error('Failed to delete from Google Calendar:', calError);
+    }
 
     // Log action history before deletion
     try {

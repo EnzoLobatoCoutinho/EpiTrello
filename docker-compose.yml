@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:15
@@ -14,6 +16,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - epitrello_net
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - epitrello_net
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URLS: "https://enzolobatocoutinho.fr,https://www.enzolobatocoutinho.fr"
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - epitrello_net
 
   app:
     build:
@@ -31,25 +58,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
-  server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    environment:
-      NODE_ENV: production
-      REDIS_URL: redis://redis:6379
-      FRONTEND_URLS: "https://enzolobatocoutinho.fr,https://www.enzolobatocoutinho.fr"
-    ports:
-      - "4000:4000"
-    depends_on:
-      - redis
-    restart: unless-stopped
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
+    networks:
+      - epitrello_net
 
 volumes:
   postgres_data:
+
+networks:
+  epitrello_net:
+    driver: bridge

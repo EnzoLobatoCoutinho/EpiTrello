@@ -53,6 +53,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.22",
     "geist": "^1.5.1",
+    "googleapis": "^171.0.0",
     "input-otp": "^1.4.2",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",

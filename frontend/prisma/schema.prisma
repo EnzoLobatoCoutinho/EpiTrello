@@ -12,19 +12,21 @@ datasource db {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  email         String         @unique
-  username      String
-  password      String?
-  googleId      String?        @unique
-  githubId      String?        @unique
-  image         String?
-  emailVerified DateTime?
-  workspaces    Workspace[]
-  boardMembers  BoardMember[]
-  actionHistory ActionHistory[]
-  accounts      Account[]
-  sessions      Session[]
+  id                    Int            @id @default(autoincrement())
+  email                 String         @unique
+  username              String
+  password              String?
+  googleId              String?        @unique
+  githubId              String?        @unique
+  image                 String?
+  emailVerified         DateTime?
+  googleCalendarToken   String?        @db.Text
+  googleCalendarRefresh String?        @db.Text
+  workspaces            Workspace[]
+  boardMembers          BoardMember[]
+  actionHistory         ActionHistory[]
+  accounts              Account[]
+  sessions              Session[]
 }
 
 model Account {
@@ -101,17 +103,18 @@ model Label {
 }
 
 model Card {
-  id          Int       @id @default(autoincrement())
-  list_id     Int
-  label_id    Int?
-  title       String
-  description String
-  start_date  DateTime
-  due_date    DateTime
-  position    Int?
-  list        List      @relation(fields: [list_id], references: [id])
-  label       Label?    @relation(fields: [label_id], references: [id])
-  checklist   ChecklistItem[]
+  id            Int       @id @default(autoincrement())
+  list_id       Int
+  label_id      Int?
+  title         String
+  description   String
+  start_date    DateTime
+  due_date      DateTime
+  position      Int?
+  googleEventId String?   @unique
+  list          List      @relation(fields: [list_id], references: [id])
+  label         Label?    @relation(fields: [label_id], references: [id])
+  checklist     ChecklistItem[]
 }
 
 model ChecklistItem {
