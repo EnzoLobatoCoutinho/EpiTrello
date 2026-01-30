@@ -28,7 +28,7 @@ import {
 } from "@dnd-kit/sortable";
 import { io } from "socket.io-client";
 import Link from "next/link";
-import { ArrowLeft, Plus, Tag, Users } from "lucide-react";
+import { ArrowLeft, Plus, Tag, Users, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,7 @@ export default function BoardPage({
   const [addingCardListId, setAddingCardListId] = useState<number | null>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
   const [isSavingCard, setIsSavingCard] = useState(false);
+  const fileInputRef = useState<HTMLInputElement | null>(null)[0];
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -114,7 +115,7 @@ export default function BoardPage({
   }, [id]);
 
   useEffect(() => {
-    const socket = io("http://localhost:4000");
+    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL);
     socket.on("connect", () => socket.emit("join-board", id));
 
     socket.on("card-moved", (updated: CardType) => {
@@ -478,6 +479,123 @@ export default function BoardPage({
     }
   }
 
+  async function handleExportJSON() {
+    const exportData = {
+      lists: lists.map(l => ({ 
+        title: l.title, 
+        cards: cards.filter(c => c.list_id === l.id).map(card => ({
+          title: card.title,
+          description: card.description,
+          position: card.position
+        }))
+      })),
+      labels: labels.map(label => ({
+        name: label.name,
+        color: label.color
+      })),
+      exportedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `board-${board?.title || id}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportJSON(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const importData = JSON.parse(text);
+
+      if (!importData.lists || !Array.isArray(importData.lists)) {
+        alert("Format JSON invalide");
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+
+      // Import lists and cards
+      for (const list of importData.lists) {
+        const resList = await fetch(`/api/dashboard/board/${id}/lists`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ title: list.title }),
+        });
+
+        if (!resList.ok) {
+          console.error("Failed to create list:", list.title);
+          continue;
+        }
+        const newList = await resList.json();
+
+        // Import cards for this list
+        if (list.cards && Array.isArray(list.cards)) {
+          for (const card of list.cards) {
+            const cardRes = await fetch(`/api/dashboard/board/${id}/lists/${newList.id}/cards`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({
+                title: card.title,
+                description: card.description || "",
+              }),
+            });
+
+            if (!cardRes.ok) {
+              console.error("Failed to create card:", card.title);
+            }
+          }
+        }
+      }
+
+      // Wait for DB to propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Reload board data
+      const res = await fetch(`/api/dashboard/board/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.board) setBoard(data.board);
+        
+        // Reconstruct cards from lists
+        const allCards: CardType[] = [];
+        data.lists?.forEach((l: any) => {
+          if (l.cards) allCards.push(...l.cards);
+        });
+        
+        setLists(data.lists?.map((l: any) => ({ ...l, position: l.position ?? 0 })) || []);
+        setCards(allCards.map((c: any) => ({ ...c, position: c.position ?? 0 })));
+        setLabels(data.labels || []);
+        
+        // Show success message after state is updated
+        setTimeout(() => alert("Import réussi !"), 100);
+      } else {
+        alert("Erreur lors du rechargement des données");
+      }
+    } catch (error) {
+      console.error("Erreur d'import:", error);
+      alert("Erreur lors de l'import du fichier JSON");
+    }
+
+    // Reset input
+    event.target.value = "";
+  }
+
   if (!board)
     return (
       <div className="flex h-screen items-center justify-center">
@@ -504,6 +622,31 @@ export default function BoardPage({
           </div>
           <div className="flex items-center gap-2">
             <ActionHistoryDialog boardId={Number(id)} />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20"
+              onClick={handleExportJSON}
+              title="Exporter en JSON"
+            >
+              <Download className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20"
+              onClick={() => document.getElementById('import-json-input')?.click()}
+              title="Importer depuis JSON"
+            >
+              <Upload className="h-5 w-5" />
+            </Button>
+            <input
+              id="import-json-input"
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleImportJSON}
+            />
             <Button
               variant="ghost"
               size="icon"

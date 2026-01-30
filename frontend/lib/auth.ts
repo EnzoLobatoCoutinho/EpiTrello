@@ -7,6 +7,7 @@
 
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import GitHubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "@/lib/prisma";
@@ -44,6 +45,11 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
@@ -86,8 +92,8 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        if (account?.provider === "google") {
-          console.log("[AUTH] Google signIn for:", user.email);
+        if (account?.provider === "google" || account?.provider === "github") {
+          console.log(`[AUTH] ${account.provider} signIn for:`, user.email);
           
           // Vérifier si l'utilisateur existe déjà
           const existingUser = await prisma.user.findUnique({
@@ -97,18 +103,23 @@ export const authOptions: NextAuthOptions = {
           if (existingUser) {
             console.log("[AUTH] User exists:", existingUser.id);
             
-            if (!existingUser.googleId) {
-              // Lier le compte Google à l'utilisateur existant
-              await prisma.user.update({
-                where: { id: existingUser.id },
-                data: {
-                  googleId: account.providerAccountId,
-                  image: user.image,
-                  emailVerified: new Date(),
-                },
-              });
-              console.log("[AUTH] Google account linked to existing user");
+            // Lier le compte OAuth à l'utilisateur existant
+            const updateData: any = {
+              image: user.image,
+              emailVerified: new Date(),
+            };
+            
+            if (account.provider === "google" && !existingUser.googleId) {
+              updateData.googleId = account.providerAccountId;
+            } else if (account.provider === "github" && !(existingUser as any).githubId) {
+              updateData.githubId = account.providerAccountId;
             }
+            
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: updateData,
+            });
+            console.log(`[AUTH] ${account.provider} account linked to existing user`);
             
             // Vérifier si l'utilisateur a un workspace
             const workspace = await prisma.workspace.findFirst({
@@ -129,17 +140,24 @@ export const authOptions: NextAuthOptions = {
             // Update the user object with the database ID
             user.id = existingUser.id.toString();
           } else {
-            console.log("[AUTH] Creating new Google user:", user.email);
+            console.log(`[AUTH] Creating new ${account.provider} user:`, user.email);
             
-            // Créer un nouvel utilisateur avec Google
+            const newUserData: any = {
+              email: user.email!,
+              username: user.name || user.email!.split("@")[0],
+              image: user.image,
+              emailVerified: new Date(),
+            };
+            
+            if (account.provider === "google") {
+              newUserData.googleId = account.providerAccountId;
+            } else if (account.provider === "github") {
+              newUserData.githubId = account.providerAccountId;
+            }
+            
+            // Créer un nouvel utilisateur avec OAuth
             const newUser = await prisma.user.create({
-              data: {
-                email: user.email!,
-                username: user.name || user.email!.split("@")[0],
-                googleId: account.providerAccountId,
-                image: user.image,
-                emailVerified: new Date(),
-              },
+              data: newUserData,
             });
 
             console.log("[AUTH] New user created:", newUser.id);

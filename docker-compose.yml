@@ -37,9 +37,9 @@ services:
       context: ./server
       dockerfile: Dockerfile
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       REDIS_URL: redis://redis:6379
-      FRONTEND_URLS: "http://localhost:3000,https://www.enzolobatocoutinho.fr"
+      FRONTEND_URLS: "https://enzolobatocoutinho.fr,https://www.enzolobatocoutinho.fr"
     ports:
       - "4000:4000"
     depends_on:
